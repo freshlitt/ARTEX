@@ -37,9 +37,9 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
     if (auth.getToken()) {
       setAuthed(true);
     } else {
-      // 客户端守卫认为未登录时，必须同时清掉 cookie：否则 proxy.ts 仅凭
-      // “cookie 存在”就把我们从 /login 又重定向回主界面，与本守卫来回弹跳
-      // 形成无限重定向 → 白屏（cookie 与 localStorage 不一致时触发）。
+      // 클라이언트 가드가 로그인이 안된 것으로 판단할 때，을 동시에 삭제해야 합니다. cookie：그렇지 않으면 proxy.ts 만
+      // “cookie 존재합니다”그냥 우리를 데려가세요 /login 는 기본 인터페이스로 다시 리디렉션됩니다.，이 가드를 들고 앞뒤로 튕겨보세요
+      // 양식 무제한 리디렉션 → 흰색 화면（cookie 그리고 localStorage 불일치 시 트리거됨）。
       auth.clearToken();
       window.location.href = "/login";
     }

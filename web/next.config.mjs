@@ -1,37 +1,37 @@
 import { fileURLToPath } from "node:url";
 
-// 静态导出：`NEXT_EXPORT=1 next build` 产出纯静态目录到 web/out，可直接丢进
-// nginx web 根目录运行。开发(next dev)不设该变量，保留 /api 反代与热更新。
+// 정적 내보내기：`NEXT_EXPORT=1 next build` 순수 정적 디렉터리를 다음으로 출력합니다. web/out，직접 던질 수 있습니다.
+// nginx web 루트 디렉터리에서 실행。개발(next dev)이 변수는 설정되지 않았습니다.，예약됨 /api 역생성 및 핫 업데이트。
 const isExport = process.env.NEXT_EXPORT === "1";
-// Vercel demo：整站走 mock，无后端，无需 /api 反代。
+// Vercel demo：역 전체를 걸어보세요 mock，백엔드 없음，필요없어요 /api 안티세대。
 const isMock = process.env.NEXT_PUBLIC_MOCK === "1";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // 避免父目录的 lockfile 影响根目录推断及资源路径生成。
+  // 상위 디렉토리 피하기 lockfile 루트 디렉터리 추론 및 리소스 경로 생성에 영향을 줍니다.。
   turbopack: { root: fileURLToPath(new URL(".", import.meta.url)) },
   reactCompiler: true,
-  // 允许从局域网 IP 访问 dev 资源（HMR），按需增删。
-  // dev 阶段放开任意 IPv4 来源访问 /_next/* 与 HMR（局域网 IP 变动也不受影响）。
-  // 注意：Next 出于安全禁止裸 "*"，需用分段通配；"*.*.*.*" 匹配任意 IPv4。
+  // LAN에서 액세스 허용 IP 방문 dev 리소스（HMR），필요에 따라 추가 또는 삭제하세요.。
+  // dev 아무 무대나 공개해 IPv4 소스 액세스 /_next/* 그리고 HMR（랜 IP 변경사항은 영향을 받지 않습니다.）。
+  // 주의：Next 안전상의 이유로 과도한 노출은 금지됩니다. "*"，분할된 와일드카드를 사용해야 합니다.；"*.*.*.*" 은 다음과 일치합니다. IPv4。
   allowedDevOrigins: ["*.*.*.*"],
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",
   },
   ...(isExport
     ? {
-        // 纯静态导出：无 Node 运行时；图片不经优化；每个路由产出 <route>/index.html。
+        // 순수 정적 내보내기：없음 Node 런타임；사진이 최적화되지 않았습니다；각 경로 출력 <route>/index.html。
         output: "export",
         images: { unoptimized: true },
         trailingSlash: true,
       }
     : isMock
       ? {
-          // Vercel mock demo：无后端，不需要 /api 反代。
+          // Vercel mock demo：백엔드 없음，필요하지 않음 /api 안티세대。
           images: { unoptimized: true },
         }
       : {
-          // 开发：把 /api/* 反代到 Go 后端（默认 :8787，可用 AUTOPENTEST_API 覆盖）。
+          // 개발：넣어보세요 /api/* 역세대를 Go 백엔드（기본값 :8787，가능 AUTOPENTEST_API 재정의）。
           async rewrites() {
             const backend = process.env.AUTOPENTEST_API ?? "http://localhost:8787";
             return [{ source: "/api/:path*", destination: `${backend}/api/:path*` }];

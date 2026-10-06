@@ -1,26 +1,26 @@
-// 渠道字段表与配置值的解析工具。
+// 채널 필드 테이블 및 구성 값에 대한 분석 도구。
 //
-// 与页面拆开是因为这一份是**数据**而不是视图：它描述每种渠道有哪些字段、
-// 各自该用什么控件，以及表单文本到配置值（JSON）的双向转换。
-// 单独放一个文件后，新增渠道只需要动这里，页面本身不必改。
-// 渠道类型的展示名与简介。放在前端是因为它只影响文案，后端不需要知道。
+// 이 페이지는 페이지와 분리되어 있습니다.**데이터**：각 채널에 어떤 필드가 있는지 설명합니다.、
+// 어떤 컨트롤을 사용해야 합니까?，및 구성 값에 대한 텍스트 양식（JSON）의 양방향 변환。
+// 별도의 파일을 배치한 후，새 채널을 추가하려면 여기로 이동하세요.，페이지 자체는 수정할 필요가 없습니다.。
+// 표시 이름 및 채널 유형 소개。카피라이팅에만 영향을 주기 때문에 프론트엔드에 넣어주세요，백엔드는 알 필요가 없습니다.。
 export const KIND_LABEL: Record<string, string> = {
-  dingtalk: "钉钉",
-  feishu: "飞书",
-  wecom: "企业微信",
-  webhook: "通用 Webhook",
+  dingtalk: "딩톡",
+  feishu: "페이슈",
+  wecom: "기업 위챗",
+  webhook: "일반 Webhook",
   telegram: "Telegram",
-  email: "邮件",
+  email: "이메일",
 };
 
-// 各渠道的配置字段定义。
+// 각 채널에 대한 구성 필드 정의。
 //
-// 这里刻意保留一份前端字段表，而不是让后端下发 schema：后端只负责
-// Validate（必填/格式），UI 需要的是布局与控件类型，两者关注的不是同一件事。
-// 唯一的耦合点是 secret_keys —— 哪些字段该渲染成密码框由后端给出，
-// 因为只有渠道实现自己清楚哪些值算凭据（企业微信的整个 Webhook 就是凭据，
-// 而钉钉的只是其中一个 secret）。新增渠道时这里少一个条目只会让表单变空白，
-// 不会静默出错（下面的 hasFields 会提示）。
+// 프런트엔드 필드 테이블을 일부러 여기에 두었습니다.，백엔드 문제를 허용하는 대신 schema：백엔드는 다음 작업만 담당합니다.
+// Validate（필수/형식），UI 필요한 것은 레이아웃과 컨트롤 타입，둘은 같은 것에 집중하지 않는다.。
+// 유일한 결합 지점은 secret_keys —— 비밀번호 상자로 렌더링되어야 하는 필드는 백엔드에서 제공됩니다.，
+// 채널 구현만이 어떤 값이 자격 증명으로 계산되는지 알기 때문에（기업 전체 WeChat Webhook 은 자격 증명입니다.，
+// 그리고 딩딩도 그 중 하나일 뿐이에요 secret）。채널을 추가할 때 여기에 항목을 하나 줄이면 양식이 공백으로 만들어집니다.，
+// 자동 오류 없음（다음은 hasFields 이 메시지를 표시합니다.）。
 export type FieldKind = "text" | "password" | "number" | "select" | "textarea" | "switch" | "kv" | "list";
 export interface FieldDef {
   key: string;
@@ -34,56 +34,56 @@ export const CHANNEL_FIELDS: Record<string, FieldDef[]> = {
   dingtalk: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://oapi.dingtalk.com/robot/send?access_token=...",
     },
     {
       key: "secret",
-      label: "加签密钥",
+      label: "서명 키",
       kind: "password",
-      help: "机器人安全设置选「加签」时填写；选「自定义关键词」或未开启安全设置则留空",
+      help: "로봇 안전 설정 선택「서명 추가」일 때 작성하세요.；선택「맞춤 키워드」또는 보안 설정이 켜져 있지 않은 경우 공백으로 두십시오.",
     },
   ],
   feishu: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://open.feishu.cn/open-apis/bot/v2/hook/...",
     },
-    { key: "secret", label: "签名校验密钥", kind: "password", help: "机器人开启「签名校验」时填写，否则留空" },
+    { key: "secret", label: "서명 확인 키", kind: "password", help: "로봇이 켜져 있습니다.「서명 확인」일 때 작성하세요.，그렇지 않으면 비워두세요" },
   ],
   wecom: [
     {
       key: "webhook",
-      label: "Webhook 地址",
+      label: "Webhook 주소",
       kind: "text",
       placeholder: "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...",
     },
   ],
   webhook: [
-    { key: "url", label: "目标 URL", kind: "text", placeholder: "https://your-endpoint.example.com/hook" },
+    { key: "url", label: "대상 URL", kind: "text", placeholder: "https://your-endpoint.example.com/hook" },
     {
       key: "method",
-      label: "请求方法",
+      label: "요청방법",
       kind: "select",
       options: [
-        { value: "POST", label: "POST（带请求体）" },
-        { value: "PUT", label: "PUT（带请求体）" },
-        { value: "PATCH", label: "PATCH（带请求体）" },
-        { value: "GET", label: "GET（不带请求体）" },
+        { value: "POST", label: "POST（요청 본문 포함）" },
+        { value: "PUT", label: "PUT（요청 본문 포함）" },
+        { value: "PATCH", label: "PATCH（요청 본문 포함）" },
+        { value: "GET", label: "GET（요청 본문 없음）" },
       ],
     },
-    { key: "headers", label: "自定义请求头", kind: "kv", help: "每行 KEY=VALUE，例如 Authorization=Bearer xxx" },
+    { key: "headers", label: "사용자 정의 요청 헤더", kind: "kv", help: "각 라인 KEY=VALUE，예를 들면 Authorization=Bearer xxx" },
     {
       key: "body_template",
-      label: "请求体模板",
+      label: "요청 본문 템플릿",
       kind: "textarea",
       help:
-        "留空用内置默认模板。变量：{{.Title}} {{.Batch}} {{.Count}} {{.HomeURL}} {{.SentAt}}，" +
-        "以及 range .Items 下的 .Name/.VulnClass/.Severity/.Summary/.Assets/.DetailURL/.StatusLabel。" +
-        "插入字符串请用 {{json .Xxx}} 而不是 {{.Xxx}}，否则标题里的引号会破坏 JSON。",
+        "내장된 기본 템플릿을 사용하려면 비워 두세요.。가변적：{{.Title}} {{.Batch}} {{.Count}} {{.HomeURL}} {{.SentAt}}，" +
+        "그리고 range .Items  .Name/.VulnClass/.Severity/.Summary/.Assets/.DetailURL/.StatusLabel。" +
+        "문자열을 삽입하는 데 사용하십시오 {{json .Xxx}} 대신 {{.Xxx}}，그렇지 않으면 제목의 따옴표가 깨집니다. JSON。",
     },
   ],
   telegram: [
@@ -91,35 +91,35 @@ export const CHANNEL_FIELDS: Record<string, FieldDef[]> = {
     { key: "chat_id", label: "Chat ID", kind: "text", placeholder: "-1001234567890" },
     {
       key: "base_url",
-      label: "API 地址",
+      label: "API 주소",
       kind: "text",
       placeholder: "https://api.telegram.org",
-      help: "留空用官方地址；自建 Bot API 反代时填写",
+      help: "공식 주소를 사용하려면 공백으로 남겨두세요.；자체 제작 Bot API 역생성시 채워주세요",
     },
   ],
   email: [
-    { key: "host", label: "SMTP 服务器", kind: "text", placeholder: "smtp.example.com" },
+    { key: "host", label: "SMTP 서버", kind: "text", placeholder: "smtp.example.com" },
     {
       key: "port",
-      label: "端口",
+      label: "포트",
       kind: "number",
       placeholder: "587",
-      help: "587 走 STARTTLS；465 请把「隐式 TLS」打开",
+      help: "587 가자 STARTTLS；465 부탁드려요「암시적 TLS」열려있습니다",
     },
-    { key: "username", label: "账号", kind: "text" },
-    { key: "password", label: "密码 / 授权码", kind: "password" },
-    { key: "from", label: "发件人", kind: "text", placeholder: "artex@example.com" },
-    { key: "to", label: "收件人", kind: "list", help: "多个地址用逗号分隔" },
-    { key: "tls", label: "隐式 TLS", kind: "switch", help: "465 端口打开；587 保持关闭（会自动 STARTTLS）" },
+    { key: "username", label: "계정", kind: "text" },
+    { key: "password", label: "비밀번호 / 인증코드", kind: "password" },
+    { key: "from", label: "보내는 사람", kind: "text", placeholder: "artex@example.com" },
+    { key: "to", label: "수신자", kind: "list", help: "쉼표로 구분된 여러 주소" },
+    { key: "tls", label: "암시적 TLS", kind: "switch", help: "465 포트 열림；587 폐쇄하세요（은 자동으로 STARTTLS）" },
   ],
 };
 
 export const SEVERITY_OPTIONS = [
-  { value: "", label: "不限" },
-  { value: "low", label: "低危及以上" },
-  { value: "medium", label: "中危及以上" },
-  { value: "high", label: "高危及以上" },
-  { value: "critical", label: "仅严重" },
+  { value: "", label: "제한 없음" },
+  { value: "low", label: "저위험 이상" },
+  { value: "medium", label: "약간 위험함 이상" },
+  { value: "high", label: "고위험 이상" },
+  { value: "critical", label: "심한 경우에만 해당" },
 ];
 
 export type ChannelForm = {
@@ -152,7 +152,7 @@ export const emptyForm = (kind: string): ChannelForm => ({
   onStatusChange: false,
 });
 
-// parseKV 解析「每行 KEY=VALUE」的文本域。
+// parseKV 분석「각 라인 KEY=VALUE」의 텍스트 필드。
 export function parseKV(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const line of text.split("\n")) {
@@ -163,7 +163,7 @@ export function parseKV(text: string): Record<string, string> {
   }
   return out;
 }
-// parseIDs 解析逗号/空白分隔的 id 列表。
+// parseIDs 쉼표를 구문 분석하세요./공백으로 구분됨 id 목록。
 export function parseIDs(text: string): number[] {
   return text
     .split(/[\s,，]+/)
@@ -172,7 +172,7 @@ export function parseIDs(text: string): number[] {
     .map((s) => Number(s))
     .filter((n) => Number.isFinite(n) && n > 0);
 }
-// parseKeywords 解析行/逗号分隔的关键词列表（漏洞类型名可能含空格，所以按行或逗号切）。
+// parseKeywords 구문 분석 라인/쉼표로 구분된 키워드 목록（취약점 유형 이름에는 공백이 포함될 수 있습니다.，그래서 줄이나 쉼표로 잘라요）。
 export function parseKeywords(text: string): string[] {
   return text
     .split(/[\n,，]+/)

@@ -61,12 +61,12 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        // 关闭对话框的唯一条件:点击的是遮罩(灰色背景)本身,且此刻没有任何 Radix 弹层
-        // (Select 下拉等)开着。其余"外部交互"一律挡掉(Esc、右上角 ✕ 仍可关):
-        //  · 点弹层里的选项 → target 不是遮罩 → 挡;
-        //  · 弹层开着时点对话框外/遮罩想收起它 → 有弹层开着 → 挡(只收弹层,不关对话框);
-        //  · 弹层收起时焦点移动被 Radix 误判为焦点移出 → target 不是遮罩 → 挡。
-        // (onInteractOutside 在指针/焦点两条路径都会触发。)调用方仍可追加逻辑。
+        // 대화상자를 닫는 유일한 조건:마스크를 클릭했습니다(회색 배경)그 자체,그리고 아무것도 없습니다 Radix 탄성층
+        // (Select 풀다운 등)열려 있는。나머지는"외부 교류"모두 차단(Esc、오른쪽 상단 ✕ 아직 닫을 수 있음):
+        //  · 글머리 기호 레이어의 옵션을 클릭하세요. → target 마스크 아님 → 차단;
+        //  · 팝업 레이어가 열린 상태에서 대화상자 바깥쪽을 클릭하세요./마스크는 치우고 싶다 → 탄성층이 열려있습니다 → 차단(탄성층만 채취,대화상자를 닫지 마세요);
+        //  · 탄성층이 수축되면 초점 이동이 차단됩니다. Radix 초점이 벗어났기 때문에 잘못 판단됨 → target 마스크 아님 → 차단。
+        // (onInteractOutside /초점의 두 경로가 모두 트리거됩니다.。)호출자는 여전히 로직을 추가할 수 있습니다.。
         onInteractOutside={(e) => {
           const target = e.detail.originalEvent.target as Element | null
           const onOverlay = !!target?.closest?.("[data-slot='dialog-overlay']")

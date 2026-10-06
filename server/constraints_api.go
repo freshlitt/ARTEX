@@ -9,19 +9,19 @@ import (
 	"github.com/Autumn-27/artex/db"
 )
 
-// 总览「约束管理」的人工 CRUD 接口 + 注入范围开关的解析。操作约束(allow/deny)与 agent 侧的
-// set_constraints 工具写同一张 task_constraints 表;这里是人类在 UI 上直接增删改。约束仅是
-// 提示上下文——增删改后【不】通知 planner,下一轮规划自然读库生效(按产品决策)。每个变更 handler
-// 都走 beginTaskOperation/decInflight,避免与任务删除竞态(与目标/意图 CRUD 一致)。
+// 개요「제약사항 관리」님의 노고 CRUD 인터페이스 + 분사범위 스위치 분석。운영상의 제약(allow/deny)그리고 agent 쪽
+// set_constraints 도구는 동일하게 작성 task_constraints 테이블;여기가 인간이 있는 곳이다 UI 직접 추가, 삭제, 수정。제약조건은
+// 프롬프트 컨텍스트——추가, 삭제, 수정 후【아니요】공지사항 planner,예정된 자연읽기 도서관 차기작 시행(제품에 따른 결정)。변화할 때마다 handler
+// 다같이 가자 beginTaskOperation/decInflight,작업 삭제로 경쟁 조건 방지(및 대상/의도 CRUD 일관됨)。
 
-// 注入范围开关的 settings key,默认都开(GetBool 第二参数 = true)。
+// 주입 범위 스위치 settings key,둘 다 기본적으로 활성화되어 있습니다.(GetBool 두 번째 매개변수 = true)。
 const (
 	settingConstraintsInjectPlanner = "constraints_inject_planner"
 	settingConstraintsInjectWorker  = "constraints_inject_worker"
 )
 
-// constraintInjectPlanner / constraintInjectWorker 报告是否把操作约束注入对应 agent 的
-// 系统提示(默认开)。作为 resolver 传给 planner/worker,每轮读 → 改开关即时生效。
+// constraintInjectPlanner / constraintInjectWorker 해당 항목에 연산 제약사항이 주입되었는지 보고합니다. agent 님
+// 시스템 프롬프트(기본적으로 켜져 있음)。 resolver 패스 planner/worker,라운드마다 읽어보세요 → 즉시 적용되도록 스위치를 변경하세요.。
 func (s *Server) constraintInjectPlanner() bool {
 	return s.m.pg.GetBool(settingConstraintsInjectPlanner, true)
 }
@@ -30,7 +30,7 @@ func (s *Server) constraintInjectWorker() bool {
 	return s.m.pg.GetBool(settingConstraintsInjectWorker, true)
 }
 
-// listConstraints 返回本任务的全部操作约束(allow 在前、deny 在后)。
+// listConstraints 이 작업의 모든 운영 제약 조건을 반환합니다.(allow 앞、deny 뒤에)。
 func (s *Server) listConstraints(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -45,7 +45,7 @@ func (s *Server) listConstraints(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"constraints": constraintDTOs(rows)})
 }
 
-// addConstraint 人工新增一条操作约束(kind=allow|deny)。不通知 planner。
+// addConstraint 작업 제약 조건을 수동으로 추가(kind=allow|deny)。알림 없음 planner。
 func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -53,7 +53,7 @@ func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.engine.beginTaskOperation(t.ID) {
-		writeErr(w, 409, "任务正在删除,无法新增约束")
+		writeErr(w, 409, "작업을 삭제하는 중입니다.,제약조건을 추가할 수 없습니다.")
 		return
 	}
 	defer s.engine.decInflight(t.ID)
@@ -68,12 +68,12 @@ func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.TrimSpace(body.Text)
 	if text == "" {
-		writeErr(w, 400, "约束内容不能为空")
+		writeErr(w, 400, "제약조건 내용은 비워둘 수 없습니다.")
 		return
 	}
 	kind := normalizeConstraintKind(body.Kind)
 	if kind == "" {
-		writeErr(w, 400, "kind 必须是 allow 或 deny")
+		writeErr(w, 400, "kind 반드시 allow 또는 deny")
 		return
 	}
 	id, err := t.Store.AddConstraint(kind, text, "human")
@@ -84,7 +84,7 @@ func (s *Server) addConstraint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, ConstraintDTO{ID: strconv.FormatInt(id, 10), Kind: kind, Text: text, Origin: "human"})
 }
 
-// editConstraint 人工修改一条约束(kind + text)。不通知 planner。
+// editConstraint 제약 조건을 수동으로 수정(kind + text)。알림 없음 planner。
 func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -92,7 +92,7 @@ func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.engine.beginTaskOperation(t.ID) {
-		writeErr(w, 409, "任务正在删除,无法修改约束")
+		writeErr(w, 409, "작업을 삭제하는 중입니다.,제약 조건을 수정할 수 없습니다.")
 		return
 	}
 	defer s.engine.decInflight(t.ID)
@@ -112,12 +112,12 @@ func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 	}
 	text := strings.TrimSpace(body.Text)
 	if text == "" {
-		writeErr(w, 400, "约束内容不能为空")
+		writeErr(w, 400, "제약조건 내용은 비워둘 수 없습니다.")
 		return
 	}
 	kind := normalizeConstraintKind(body.Kind)
 	if kind == "" {
-		writeErr(w, 400, "kind 必须是 allow 或 deny")
+		writeErr(w, 400, "kind 반드시 allow 또는 deny")
 		return
 	}
 	if err := t.Store.UpdateConstraint(cid, kind, text); err != nil {
@@ -127,7 +127,7 @@ func (s *Server) editConstraint(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, ConstraintDTO{ID: strconv.FormatInt(cid, 10), Kind: kind, Text: text})
 }
 
-// deleteConstraint 人工删除一条约束。不通知 planner。
+// deleteConstraint 제약조건 수동 삭제。알림 없음 planner。
 func (s *Server) deleteConstraint(w http.ResponseWriter, r *http.Request) {
 	t, ok := s.m.Task(r.PathValue("id"))
 	if !ok {
@@ -135,7 +135,7 @@ func (s *Server) deleteConstraint(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !s.engine.beginTaskOperation(t.ID) {
-		writeErr(w, 409, "任务正在删除,无法删除约束")
+		writeErr(w, 409, "작업을 삭제하는 중입니다.,제약조건을 삭제할 수 없습니다.")
 		return
 	}
 	defer s.engine.decInflight(t.ID)

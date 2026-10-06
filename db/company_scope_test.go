@@ -56,15 +56,15 @@ func TestParseAutoScopeLine(t *testing.T) {
 		{name: "ipv4", input: "203.0.113.10", kind: "ip", normalized: "203.0.113.10/32"},
 		{name: "ipv6", input: "2001:db8::10", kind: "ip", normalized: "2001:db8::10/128"},
 		{name: "cidr", input: "198.51.100.0/24", kind: "cidr", normalized: "198.51.100.0/24"},
-		{name: "icp latin", input: "京 ICP备 123号", kind: "icp", normalized: "京icp备123号"},
-		{name: "icp chinese", input: "沪网备案 9988", kind: "icp", normalized: "沪网备案9988"},
+		{name: "icp latin", input: "\u4eac ICP\u5907 123\u53f7", kind: "icp", normalized: "\u4eacicp\u5907123\u53f7"},
+		{name: "icp chinese", input: "\u6caa\u7f51\u5907\u6848 9988", kind: "icp", normalized: "\u6caa\u7f51\u5907\u68489988"},
 		{name: "icp domain", input: "icp.example.com", kind: "domain", normalized: "icp.example.com"},
 		{name: "icp url query", input: "https://example.com/path?icp=1", kind: "domain", normalized: "example.com"},
-		// 备案号不含点号：掺了域名/版本号的描述性文字归关键词，否则会存成一条
-		// 永远匹配不上的死 ICP 规则。
-		{name: "icp with domain text", input: "备案 www.example.com", kind: "keyword", normalized: "备案 www.example.com"},
-		{name: "icp with version text", input: "某公司 ICP v1.0", kind: "keyword", normalized: "某公司 icp v1.0"},
-		{name: "icp fullwidth dot", input: "备案 例．com", kind: "keyword", normalized: "备案 例．com"},
+		// 등록번호에 마침표가 없습니다.：도메인 이름이 추가되었습니다./버전 번호의 설명 텍스트가 키워드에 할당됩니다.，그렇지 않으면 하나로 저장됩니다.
+		// 결코 비할 수 없는 죽음 ICP 규칙。
+		{name: "icp with domain text", input: "\u5907\u6848 www.example.com", kind: "keyword", normalized: "\u5907\u6848 www.example.com"},
+		{name: "icp with version text", input: "\u67d0\u516c\u53f8 ICP v1.0", kind: "keyword", normalized: "\u67d0\u516c\u53f8 icp v1.0"},
+		{name: "icp fullwidth dot", input: "\u5907\u6848 \u4f8b．com", kind: "keyword", normalized: "\u5907\u6848 \u4f8b．com"},
 		{name: "keyword", input: "  ACME   Security  ", kind: "keyword", normalized: "acme security"},
 		{name: "colon keyword", input: "ACME: Cloud: Security", kind: "keyword", normalized: "acme: cloud: security"},
 		{name: "empty", input: "  ", wantErr: true},
@@ -209,11 +209,11 @@ func TestExplicitCompanyAttributionSurvivesScopeRebuild(t *testing.T) {
 }
 
 func TestParseStructuredCompanyScope(t *testing.T) {
-	icp, err := ParseScopeInput(ScopeInput{Kind: "ICP", Value: " 京ICP 备 123号-1\t"})
+	icp, err := ParseScopeInput(ScopeInput{Kind: "ICP", Value: " 쿄ICP 준비완료 123번호-1\t"})
 	if err != nil {
 		t.Fatalf("parse ICP: %v", err)
 	}
-	if icp.Kind != "icp" || icp.Value != "京icp备123号-1" {
+	if icp.Kind != "icp" || icp.Value != "쿄icp준비완료123번호-1" {
 		t.Fatalf("unexpected normalized ICP: %+v", icp)
 	}
 	keyword, err := ParseScopeInput(ScopeInput{Kind: "keyword", Value: "  ACME   Security  "})
@@ -233,14 +233,14 @@ func TestCompanyICPAttribution(t *testing.T) {
 	if err != nil {
 		t.Skipf("postgres unavailable (%v) — skipping", err)
 	}
-	// 关连接必须走 t.Cleanup 且**注册在清理之前**：t.Cleanup 是后进先出，
-	// 先注册关闭 → 关闭最后执行，下面的数据清理才连得上库。
-	// 原先这里是 `defer d.Close()`：defer 在函数返回时先跑，t.Cleanup 在那之后
-	// 才执行，于是清理语句全落在**已关闭的连接**上、错误又被 `_, _ =` 丢弃，
-	// 资产与公司就永久残留在库里。残留本身不会立刻报错，但本用例用
-	// `MAX(companies.id)+1` 当假 TaskID 给资产打标（见下方 suffix），
-	// 一旦这个数字与别的用例的任务 id 撞上，那个用例按「恰好 N 个资产」的断言
-	// 就会莫名失败——排查成本极高。
+	// 연결이 되어야 합니다 t.Cleanup 그리고**청소 전 등록**：t.Cleanup 은 후입선출 방식입니다.，
+	// 먼저 등록하고 종료하세요 → 마지막 실행을 닫습니다.，데이터베이스에 연결하려면 다음과 같은 데이터 정리가 필요합니다.。
+	// 원래는 이랬어요 `defer d.Close()`：defer 함수가 반환되면 먼저 실행，t.Cleanup 그 후
+	// 실행만 됨，따라서 정리 문은 모두 다음과 같습니다.**연결이 끊어졌습니다.**에、또 오류가 떴네요 `_, _ =` 삭제，
+	// 자산과 회사는 도서관에 영원히 남을 것입니다。잔여물 자체는 오류를 즉시 보고하지 않습니다.，하지만 이 사용 사례에서는
+	// `MAX(companies.id)+1` 가짜 TaskID 태그 자산（아래 참조 suffix），
+	// 이 번호가 다른 사용 사례 작업과 연결되면 id 부딪혔어요，해당 사용 사례는「정확히는 N 자산」의 주장
+	// 설명할 수 없는 실패가 발생합니다.——조사비용이 엄청나네요。
 	t.Cleanup(func() { d.Close() })
 
 	var suffix int64
@@ -254,18 +254,18 @@ func TestCompanyICPAttribution(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
-		// 不吞错误：清理失败会污染后续用例，必须让它在本次运行里显形。
+		// 오류를 삼키지 마세요：정리하지 않으면 후속 사용 사례가 오염됩니다.，이번 실행에서는 표시되어야 합니다.。
 		if _, err := d.Exec(`DELETE FROM assets WHERE task_ids @> ARRAY[$1]::bigint[]`, suffix); err != nil {
-			t.Errorf("清理测试资产失败: %v", err)
+			t.Errorf("테스트 자산을 정리하지 못했습니다.: %v", err)
 		}
 		if _, err := d.Exec(`DELETE FROM companies WHERE id=$1`, companyID); err != nil {
-			t.Errorf("清理测试公司失败: %v", err)
+			t.Errorf("테스트업체 정리 실패: %v", err)
 		}
 	})
 
 	// A keyword can guide an Agent, but must never claim an asset by its name.
 	added, _, invalid, errs := cs.AddScopeInputs(companyID, []ScopeInput{
-		{Kind: "icp", Value: "京 ICP备 998877号"},
+		{Kind: "icp", Value: "쿄 ICP준비완료 998877번호"},
 		{Kind: "keyword", Value: "ICP Scope"},
 	}, "unit test")
 	if added != 2 || invalid != 0 || len(errs) != 0 {
@@ -273,7 +273,7 @@ func TestCompanyICPAttribution(t *testing.T) {
 	}
 
 	rootID, err := as.UpsertRootDomain(UpsertRootDomainReq{
-		Domain: fmt.Sprintf("icp-scope-%d.example", suffix), ICP: "京icp备998877号", TaskID: suffix,
+		Domain: fmt.Sprintf("icp-scope-%d.example", suffix), ICP: "쿄icp준비완료998877번호", TaskID: suffix,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -285,7 +285,7 @@ func TestCompanyICPAttribution(t *testing.T) {
 		t.Fatal(err)
 	}
 	icpAppID, err := as.UpsertApp(UpsertAppReq{
-		Name: fmt.Sprintf("ICP Matched App %d", suffix), ICP: " 京 ICP备 998877号 ", TaskID: suffix,
+		Name: fmt.Sprintf("ICP Matched App %d", suffix), ICP: " 쿄 ICP준비완료 998877번호 ", TaskID: suffix,
 	})
 	if err != nil {
 		t.Fatal(err)
