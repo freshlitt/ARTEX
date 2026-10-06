@@ -14,18 +14,18 @@ func noaWarn(session string) func(string) {
 	return func(msg string) { log.Printf("[noa] %s: %s", session, msg) }
 }
 
-// noa 是 norma v0.4.0 引入的「模型驱动上下文压缩」机制,作为平台实验功能由用户在
-// 系统设置中开关。它与内置 compaction 互斥:noaadapter.Enable 是唯一入口,一次挂上
-// 上下文接管器(Compactor)、Compress 工具与三段常驻提示词,不调用 Enable 即为关闭
-// (内置 compaction 照常工作)。开关由每个 agent 注入的 noaEnabledFn 解析,每 run 读
-// 一次,故切换只影响之后启动的 run,无需重建 agent。
+// noa 네 norma v0.4.0 소개됨「모델 기반 컨텍스트 압축」메커니즘,플랫폼 실험 기능으로 사용자는
+// 시스템 설정으로 전환。내장과 비슷합니다. compaction 상호 배타적:noaadapter.Enable 이 유일한 입구입니다,일단 끊으세요
+// 컨텍스트 수용자(Compactor)、Compress 도구 및 세 가지 영구 알림 단어,호출되지 않음 Enable 폐쇄됨
+// (내장 compaction 평소대로 일하세요)。스위치는 각각 agent 주입됨 noaEnabledFn 분석,매 run 읽기
+// 한번,따라서 전환은 나중에 시작된 경우에만 영향을 미칩니다. run,재구축 필요 없음 agent。
 
-// enableNoa 在解析器报告开启时把 noa 接入 opts。archiveRoot 是压缩原文的持久化基目录
-// (取全局 workDir,各 agent 统一落在 <workDir>/noa 下,不随任务/意图目录分散),sessionID
-// 命名其下的归档子目录(全局唯一,故同一基目录内不冲突)。
+// enableNoa 넣어주세요 noa 접속 opts。archiveRoot 은 압축된 원본 텍스트의 지속성 기본 디렉터리입니다.
+// (글로벌을 노려라 workDir,각각 agent 통일가을 <workDir>/noa 다음,작업을 따르지 않음/인텐트 디렉터리가 분산되어 있습니다.),sessionID
+// 그 아래의 아카이브 하위 디렉터리 이름을 지정하세요.(전역적으로 고유함,따라서 동일한 베이스 디렉터리에서는 충돌이 발생하지 않습니다.)。
 //
-// noa 是实验功能:接入失败不得中断真实任务。发生错误时经 onWarn 上报并回退内置压缩。
-// 启用成功时清掉 opts.Compaction,避免 agentcore 因「两个上下文管理器同时设置」告警。
+// noa 은 실험적인 함수입니다.:액세스 실패로 인해 실제 작업이 중단되어서는 안 됩니다.。오류가 발생한 시간 onWarn 내장 압축 보고 및 롤백。
+// 성공적으로 활성화되면 지워짐 opts.Compaction,피하세요 agentcore 왜냐하면「두 개의 컨텍스트 관리자가 동시에 설정되었습니다.」알람。
 func enableNoa(opts *agentcore.Options, enabled func() bool, archiveRoot, sessionID string, onWarn func(string)) {
 	if enabled == nil || !enabled() {
 		return
@@ -39,10 +39,10 @@ func enableNoa(opts *agentcore.Options, enabled func() bool, archiveRoot, sessio
 		OnWarn:         onWarn,
 	}); err != nil {
 		if onWarn != nil {
-			onWarn("noa 压缩启用失败,回退内置压缩:" + err.Error())
+			onWarn("noa 압축 활성화 실패,대체 압축 내장:" + err.Error())
 		}
 		return
 	}
-	// Compactor 覆盖 Compaction,但两者并存时 agentcore 每次会告警;明确清掉。
+	// Compactor 재정의 Compaction,하지만 둘 다 공존하는 경우 agentcore 매번 알람이 울립니다.;명확하게 지우세요。
 	opts.Compaction = nil
 }

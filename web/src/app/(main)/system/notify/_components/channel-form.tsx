@@ -9,31 +9,31 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type { NotificationFilter } from "@/lib/types";
 
-// asText / inputType 是本文件内的取值辅助（与控件渲染强相关），不放在 channel-fields。
+// asText / inputType 은 이 파일의 보조 값입니다.（컨트롤 렌더링과 밀접한 관련이 있음），넣지 마세요 channel-fields。
 import { type FieldDef, type FieldKind, SEVERITY_OPTIONS } from "./channel-fields";
 
-// asText 把任意配置值渲染成输入框可用的字符串。
-// config 来自 JSON，值可能是 string / number / boolean / array / null，
-// 这里只关心「能不能塞进文本框」，具体序列化由 buildConfig 负责。
+// asText 모든 구성 값을 입력 상자에서 사용할 수 있는 문자열로 렌더링합니다.。
+// config 님으로부터 JSON，값은 다음과 같을 수 있습니다. string / number / boolean / array / null，
+// 여기만 신경쓰여요「글 상자에 넣어주실 수 있나요?」，특정 직렬화는 다음에 의해 수행됩니다. buildConfig 담당。
 function asText(v: unknown): string {
   if (typeof v === "string") return v;
   if (v === null || v === undefined) return "";
   return String(v);
 }
 
-// inputType 把字段类型映射到 input 的 type 属性。
+// inputType 필드 유형을 매핑할 대상 input 님 type 속성。
 function inputType(kind: FieldKind): "text" | "password" | "number" {
   if (kind === "password") return "password";
   if (kind === "number") return "number";
   return "text";
 }
 
-// ConfigField 按字段定义渲染对应的控件。
+// ConfigField 필드 정의에 따라 해당 컨트롤을 렌더링합니다.。
 //
-// 掩码字段的处理是这里唯一的讲究：输入框**不显示**掩码值本身，只显示一行
-// 「已保存」提示。这样界面上就只有一个规则——框里有字就是用户填的，
-// 空框就是空值。若把 "__masked__:…abc123" 塞进输入框，用户会以为那是要自己
-// 删掉的占位文本，反而更容易误清凭据。
+// 여기서 중요한 것은 마스크 필드 처리뿐입니다.：입력 상자**표시되지 않음**마스크 값 자체，한 줄만 표시
+// 「저장되었습니다」팁。이렇게 하면 인터페이스에 규칙이 하나만 있습니다.——상자 안의 단어는 사용자가 입력합니다.，
+// 빈 상자는 빈 값。만약에 "__masked__:…abc123" 입력창에 삽입，사용자들은 자기 자신을 위한 것이라고 생각할 것입니다.
+// 자리 표시자 텍스트가 삭제되었습니다.，반대로 실수로 자격 증명을 삭제하는 것이 더 쉽습니다.。
 export function ConfigField({
   def,
   value,
@@ -47,7 +47,7 @@ export function ConfigField({
 }) {
   const id = `n-cfg-${def.key}`;
   const raw = asText(value);
-  // 后端回显的掩码值：形如 "__masked__:…abc123"，尾部是原值的可辨识片段。
+  // 백엔드에서 에코되는 마스크 값：모양은 다음과 같습니다 "__masked__:…abc123"，꼬리는 원래 값의 식별 가능한 조각입니다.。
   const masked = isSecret && raw.startsWith("__masked__");
   const maskedTail = masked ? (raw.split("…")[1] ?? "") : "";
 
@@ -81,8 +81,8 @@ export function ConfigField({
     );
   }
 
-  // 控件按字段类型分派。用 if 链而不是嵌套三元，是因为这里要区分四种控件，
-  // 三层三元读起来已经要停下来数括号了。
+  // 컨트롤은 필드 유형별로 전달됩니다.。사용 if 중첩된 삼항 대신 체인，여기서 구별해야 할 컨트롤 종류가 4가지이기 때문입니다.，
+  // 3단계 삼항법을 읽을 때 멈추고 괄호를 세어야 합니다.。
   function control() {
     if (def.kind === "textarea" || def.kind === "kv") {
       return (
@@ -120,7 +120,7 @@ export function ConfigField({
   const hint = masked ? (
     <p className="text-muted-foreground flex items-center gap-1 text-xs">
       <CheckIcon className="size-3" />
-      已保存{maskedTail ? `（尾号 ${maskedTail}）` : ""} · 填入新值即覆盖，清空则删除该项
+      저장되었습니다{maskedTail ? `（꼬리번호 ${maskedTail}）` : ""} · 새로운 값을 입력하면 덮어쓰게 됩니다.，항목을 삭제하려면 지우세요.
     </p>
   ) : (
     def.help && <p className="text-muted-foreground text-xs">{def.help}</p>
@@ -135,19 +135,19 @@ export function ConfigField({
   );
 }
 
-// FilterSummary 把过滤条件摘要成一行，让卡片不用展开就能看出这个渠道推什么。
+// FilterSummary 필터 조건을 한 줄로 요약，카드를 펼칠 필요 없이 이 채널이 무엇을 홍보하는지 살펴보겠습니다.。
 export function FilterSummary({ filter }: { filter: NotificationFilter }) {
   const parts: string[] = [];
   if (filter.min_severity) {
     parts.push(SEVERITY_OPTIONS.find((o) => o.value === filter.min_severity)?.label ?? filter.min_severity);
   }
-  if (filter.vulnclass_include?.length) parts.push(`类型含 ${filter.vulnclass_include.length} 词`);
-  if (filter.vulnclass_exclude?.length) parts.push(`排除 ${filter.vulnclass_exclude.length} 词`);
-  if (filter.task_ids?.length) parts.push(`${filter.task_ids.length} 个任务`);
-  if (filter.asset_ids?.length) parts.push(`${filter.asset_ids.length} 个资产`);
-  if (filter.on_status_change) parts.push("含状态变更");
+  if (filter.vulnclass_include?.length) parts.push(`유형에는 다음이 포함됩니다. ${filter.vulnclass_include.length} 말씀`);
+  if (filter.vulnclass_exclude?.length) parts.push(`제외 ${filter.vulnclass_exclude.length} 말씀`);
+  if (filter.task_ids?.length) parts.push(`${filter.task_ids.length} 작업`);
+  if (filter.asset_ids?.length) parts.push(`${filter.asset_ids.length} 자산`);
+  if (filter.on_status_change) parts.push("상태변화 포함");
   if (parts.length === 0) {
-    return <p className="text-muted-foreground text-sm">全部漏洞</p>;
+    return <p className="text-muted-foreground text-sm">모든 취약점</p>;
   }
   return <p className="text-muted-foreground text-sm">{parts.join(" · ")}</p>;
 }

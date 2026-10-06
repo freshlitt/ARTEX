@@ -10,24 +10,24 @@ import (
 	"testing"
 )
 
-// 本文件补齐邮件渠道的协议级测试。在此之前 email.Send 的覆盖率是 0——
-// 整条 SMTP 路径没有任何用例跑过，而它恰恰是六个渠道里协议面最大、
-// 最容易出错的一个（握手、认证、信封、DATA 阶段各有各的失败语义）。
+// 이 문서는 이메일 채널의 프로토콜 수준 테스트를 완료합니다.。그 전에는 email.Send 의 적용 범위는 다음과 같습니다. 0——
+// 기사 전체 SMTP 경로에서 실행된 사용 사례가 없습니다.，그리고 공교롭게도 6개 채널 중 최대 규모의 합의다.、
+// 오류가 가장 많이 발생하는 것（악수、인증、봉투、DATA 각 단계에는 고유한 실패 의미가 있습니다.）。
 //
-// 这里用自建的最小 SMTP 服务器驱动，而不是 mock 掉 net/smtp：
-// 邮件渠道的绝大部分风险就在「与真实 SMTP 服务器对话」这一步，
-// 把这一步 mock 掉等于不测。
+// 여기서는 자체 제작한 가장 작은 것을 사용합니다. SMTP 서버 드라이버，대신 mock 떨어졌어요 net/smtp：
+// 이메일 채널의 위험은 대부분「그리고 진실 SMTP 서버 대화」이번 단계는，
+// 이렇게 해보세요 mock 빠지는 건 사고。
 
-// fakeSMTP 是一个刚好够用的 SMTP 服务器：能完成 greet/EHLO/AUTH/MAIL/RCPT/DATA/QUIT，
-// 并按用例要求对特定阶段返回指定应答码。
+// fakeSMTP 이면 충분해요 SMTP 서버：완료 가능 greet/EHLO/AUTH/MAIL/RCPT/DATA/QUIT，
+// 및 사용 사례에서 요구하는 대로 특정 단계에 대해 지정된 응답 코드를 반환합니다.。
 type fakeSMTP struct {
 	ln net.Listener
 
-	// rcptReply 是 RCPT TO 的应答；默认 250。
+	// rcptReply 네 RCPT TO 님의 답변；기본값 250。
 	rcptReply string
-	// mailReply 是 MAIL FROM 的应答；默认 250。
+	// mailReply 네 MAIL FROM 님의 답변；기본값 250。
 	mailReply string
-	// advertiseAuth 为 true 时在 EHLO 里声明支持 AUTH PLAIN。
+	// advertiseAuth 입니다 true 시자이 EHLO 지지 선언 AUTH PLAIN。
 	advertiseAuth bool
 
 	mu       sync.Mutex
@@ -51,7 +51,7 @@ func (f *fakeSMTP) hostPort(t *testing.T) (string, int) {
 	t.Helper()
 	addr, ok := f.ln.Addr().(*net.TCPAddr)
 	if !ok {
-		t.Fatal("非 TCP 监听地址")
+		t.Fatal("아니요 TCP 청취주소")
 	}
 	return "127.0.0.1", addr.Port
 }
@@ -97,14 +97,14 @@ func (f *fakeSMTP) serve() {
 		f.record(line)
 		switch {
 		case strings.HasPrefix(line, "EHLO"), strings.HasPrefix(line, "HELO"):
-			// 不声明 STARTTLS：让代码走明文分支（测试目标是信封逻辑，不是 TLS）。
+			// 선언되지 않음 STARTTLS：코드가 일반 텍스트 분기를 사용하도록 합니다.（테스트 대상은 봉투 로직입니다.，아니요 TLS）。
 			w("250-fake.local")
 			if f.advertiseAuth {
 				w("250-AUTH PLAIN")
 			}
 			w("250 8BITMIME")
 		case strings.HasPrefix(line, "AUTH"):
-			// 简化处理：PLAIN 的初始应答可能跨多行，直接接受。
+			// 단순화된 처리：PLAIN 의 초기 응답은 여러 줄에 걸쳐 있을 수 있습니다.，직접 수락。
 			w("235 2.7.0 Authentication successful")
 		case strings.HasPrefix(line, "MAIL FROM"):
 			w(f.mailReply)
@@ -157,45 +157,45 @@ func TestEmailSendDeliversFullMessage(t *testing.T) {
 	cfg := emailCfg(t, f, map[string]any{"username": "artex", "password": "pw"})
 
 	if _, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg()); err != nil {
-		t.Fatalf("投递失败: %v", err)
+		t.Fatalf("배송실패: %v", err)
 	}
-	// 信封阶段必须走到：发件人、两个收件人、DATA。
+	// 봉투 단계에 도달해야합니다：보내는 사람、수신자 2명、DATA。
 	for _, want := range []string{"MAIL FROM:<artex@example.com>", "RCPT TO:<a@example.com>", "RCPT TO:<b@example.com>", "DATA", "AUTH", "QUIT"} {
 		if !f.sawCommand(want) {
-			t.Errorf("SMTP 会话里缺少 %q，实际命令：%v", want, f.commands)
+			t.Errorf("SMTP 세션이 누락되었습니다. %q，실제 명령：%v", want, f.commands)
 		}
 	}
-	// 正文是 base64 的 HTML，且要带上真实的漏洞内容（编码后仍可辨认）。
+	// 본문은 base64 님 HTML，그리고 실제 취약점 내용을 가져와야 합니다.（인코딩 후에도 여전히 읽을 수 있음）。
 	body := f.body()
 	if body == "" {
-		t.Fatal("DATA 阶段没有收到正文")
+		t.Fatal("DATA 스테이지에서 문자를 받지 못했습니다")
 	}
 	if !strings.Contains(body, "Content-Type: text/html") {
-		t.Errorf("缺少 Content-Type 头:\n%s", body)
+		t.Errorf("없어짐 Content-Type 머리:\n%s", body)
 	}
 	if !strings.Contains(body, "base64") {
-		t.Errorf("正文未按 base64 编码（长 HTML 行会破坏 SMTP 的 1000 字节行长限制）:\n%s", body)
+		t.Errorf("텍스트가 클릭되지 않습니다 base64 인코딩（길다 HTML 길드파괴 SMTP 님 1000 바이트 줄 길이 제한）:\n%s", body)
 	}
-	// 多个收件人都要出现在 To 头里。
+	// 수신자가 여러 명이어야 합니다. To 안으로 들어가세요。
 	if !strings.Contains(body, "a@example.com, b@example.com") {
-		t.Errorf("To 头未包含全部收件人:\n%s", body)
+		t.Errorf("To 헤더에 모든 수신자가 포함되어 있지 않습니다.:\n%s", body)
 	}
 }
 
 func TestEmailSendWithoutAuth(t *testing.T) {
-	// 未配账号时不应发 AUTH —— 有些中继会因此拒收。
+	// 계정이 할당되지 않은 경우 보내면 안 됩니다. AUTH —— 일부 릴레이에서는 이 때문에 거부합니다.。
 	f := newFakeSMTP(t)
 	cfg := emailCfg(t, f, nil)
 	if _, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg()); err != nil {
-		t.Fatalf("投递失败: %v", err)
+		t.Fatalf("배송실패: %v", err)
 	}
 	if f.sawCommand("AUTH") {
-		t.Errorf("未配账号却发了 AUTH: %v", f.commands)
+		t.Errorf("계정을 할당하지 않고 보냈습니다. AUTH: %v", f.commands)
 	}
 }
 
-// TestEmailSendClassifiesSMTPReplies 是本次审计修复的直接验证：
-// 5xx 判永久失败、4xx（灰名单）判可重试。
+// TestEmailSendClassifiesSMTPReplies 은 이번 감사수리 직접 검증입니다：
+// 5xx 영구 장애、4xx（그레이리스트）재시도 가능。
 func TestEmailSendClassifiesSMTPReplies(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -203,11 +203,11 @@ func TestEmailSendClassifiesSMTPReplies(t *testing.T) {
 		mailReply string
 		permanent bool
 	}{
-		{"收件人被 550 永久拒绝", "550 5.1.1 User unknown", "250 OK", true},
-		{"收件人遇 450 灰名单", "450 4.7.1 Greylisting in action", "250 OK", false},
-		{"收件人遇 452 邮箱满", "452 4.2.2 Mailbox full", "250 OK", false},
-		{"发件人被 553 永久拒绝", "250 OK", "553 5.1.3 Bad address", true},
-		{"发件人遇 451 临时错误", "250 OK", "451 4.3.0 Temporary failure", false},
+		{"수신자는 550 영구거부", "550 5.1.1 User unknown", "250 OK", true},
+		{"수신자 450 그레이리스트", "450 4.7.1 Greylisting in action", "250 OK", false},
+		{"수신자 452 이메일이 꽉 찼습니다.", "452 4.2.2 Mailbox full", "250 OK", false},
+		{"보낸 사람은 553 영구거부", "250 OK", "553 5.1.3 Bad address", true},
+		{"보내는 사람 451 일시적인 오류", "250 OK", "451 4.3.0 Temporary failure", false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -216,28 +216,28 @@ func TestEmailSendClassifiesSMTPReplies(t *testing.T) {
 			f.mailReply = tc.mailReply
 			_, err := (emailChannel{}).Send(context.Background(), emailCfg(t, f, nil), singleMsg())
 			if err == nil {
-				t.Fatal("应报错")
+				t.Fatal("오류가 보고되어야 합니다.")
 			}
 			if got := IsPermanent(err); got != tc.permanent {
-				t.Fatalf("permanent 判定错误：期望 %v 得到 %v (%v)", tc.permanent, got, err)
+				t.Fatalf("permanent 판정 오류：기대 %v 받았어요 %v (%v)", tc.permanent, got, err)
 			}
-			// 服务器原文要保留，否则用户不知道该找服务器管理员还是改地址。
+			// 서버의 원본 텍스트는 유지되어야 합니다.，그렇지 않으면 사용자는 서버 관리자에게 문의해야 할지, 주소를 변경해야 할지 알 수 없습니다.。
 			if !strings.Contains(err.Error(), strings.Fields(tc.rcptReply)[0]) && !strings.Contains(err.Error(), strings.Fields(tc.mailReply)[0]) {
-				t.Errorf("错误里应保留服务器的应答码: %v", err)
+				t.Errorf("서버의 응답 코드는 오류에 유지되어야 합니다.: %v", err)
 			}
 		})
 	}
 }
 
 func TestEmailSendRefusesPlaintextCredentials(t *testing.T) {
-	// net/smtp 的 PlainAuth 拒绝在未加密连接上发凭据（除非目标是 localhost）。
-	// 这是**正确**的安全行为，不能被绕过；但要给出能指导用户修复的错误。
-	// 这里用一个非 localhost 的主机名触发它。
+	// net/smtp 님 PlainAuth 암호화되지 않은 연결을 통한 자격 증명 발급을 거부합니다.（대상이 아닌 이상 localhost）。
+	// 이건**맞습니다**의 안전한 행동，우회할 수 없음；하지만 사용자가 수정할 수 있도록 안내할 수 있는 오류를 제공하세요.。
+	// 비- localhost 의 호스트 이름이 이를 트리거합니다.。
 	f := newFakeSMTP(t)
 	f.advertiseAuth = true
 	_, port := f.hostPort(t)
 	cfg := map[string]any{
-		"host":     "smtp.example.com", // 非 localhost
+		"host":     "smtp.example.com", // 아니요 localhost
 		"port":     float64(port),
 		"from":     "a@example.com",
 		"to":       []any{"b@example.com"},
@@ -246,91 +246,91 @@ func TestEmailSendRefusesPlaintextCredentials(t *testing.T) {
 	}
 	_, err := (emailChannel{}).Send(context.Background(), cfg, singleMsg())
 	if err == nil {
-		t.Skip("本机 DNS 解析到了本地服务器，跳过（不影响其它用例）")
+		t.Skip("본 기기 DNS 로컬 서버로 확인됨，건너뛰기（다른 사용 사례에는 영향을 미치지 않습니다.）")
 	}
-	// 连不上 或 被拒发凭据都算通过这条断言；关键是**不能**静默把密码发出去。
-	if !IsPermanent(err) && !strings.Contains(err.Error(), "连接") {
-		t.Logf("错误：%v（非 localhost 下未能连上属预期）", err)
+	// 연결할 수 없습니다 또는 거부된 모든 자격 증명은 이 어설션을 통과한 것으로 간주됩니다.；핵심은**안돼요**비밀번호를 자동으로 보내주세요。
+	if !IsPermanent(err) && !strings.Contains(err.Error(), "연결하다") {
+		t.Logf("오류：%v（아니요 localhost 다음은 예상대로 위쪽에 연결에 실패했습니다.）", err)
 	}
 }
 
 func TestEmailValidateReportsMissingFields(t *testing.T) {
-	// 邮件渠道的配置字段最多，遗漏任一个都会在投递时才暴露；这里逐个确认
-	// 校验能提前拦下。断言检查的是「错误信息提到了缺什么」。
+	// 이메일 채널에 구성 필드가 가장 많습니다.，하나라도 생략되면 전달시에만 노출됩니다.；여기까지 하나씩 확인해주세요
+	// 검증을 통해 사전에 중지할 수 있습니다.。어설션 확인「오류 메시지에는 누락된 내용이 언급되어 있습니다.」。
 	cases := []struct {
 		name string
 		cfg  map[string]any
 	}{
-		{"缺 host", map[string]any{"port": float64(25), "from": "a@b.c", "to": []any{"d@e.f"}}},
-		{"缺 port", map[string]any{"host": "smtp.example.com"}},
-		{"port 越界", map[string]any{"host": "h", "port": float64(70000), "from": "a@b.c", "to": []any{"d@e.f"}}},
-		{"缺 from", map[string]any{"host": "h", "port": float64(25), "to": []any{"d@e.f"}}},
-		{"缺 to", map[string]any{"host": "h", "port": float64(25), "from": "a@b.c"}},
+		{"누락 host", map[string]any{"port": float64(25), "from": "a@b.c", "to": []any{"d@e.f"}}},
+		{"누락 port", map[string]any{"host": "smtp.example.com"}},
+		{"port 선을 넘어", map[string]any{"host": "h", "port": float64(70000), "from": "a@b.c", "to": []any{"d@e.f"}}},
+		{"누락 from", map[string]any{"host": "h", "port": float64(25), "to": []any{"d@e.f"}}},
+		{"누락 to", map[string]any{"host": "h", "port": float64(25), "from": "a@b.c"}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := (emailChannel{}).Validate(tc.cfg); err == nil {
-				t.Fatalf("应校验失败: %v", tc.cfg)
+				t.Fatalf("인증 실패: %v", tc.cfg)
 			}
 		})
 	}
 }
 
-// TestEmailConfigTolerance 覆盖配置读取的容错：JSONB 里数值是 float64，
-// 但用户在 UI 里可能把端口填成字符串；数组也可能是单个字符串。
+// TestEmailConfigTolerance 구성 읽기 내결함성 재정의：JSONB 값은 float64，
+// 하지만 사용자는 UI 은 포트를 문자열로 채울 수 있습니다.；배열은 단일 문자열일 수도 있습니다.。
 func TestEmailConfigTolerance(t *testing.T) {
 	cfg := map[string]any{
 		"host": "smtp.example.com",
-		"port": "587", // 字符串形式的端口
+		"port": "587", // 문자열 형식의 포트
 		"from": "a@b.c",
-		"to":   "d@e.f", // 单个字符串而非数组
-		"tls":  "true",  // 字符串形式的布尔
+		"to":   "d@e.f", // 배열 대신 단일 문자열
+		"tls":  "true",  // 문자열 형식의 부울
 	}
 	if err := (emailChannel{}).Validate(cfg); err != nil {
-		t.Fatalf("应容忍字符串形式的数值: %v", err)
+		t.Fatalf("문자열 형식의 값이 허용되어야 합니다.: %v", err)
 	}
 	if got := cfgInt(cfg, "port"); got != 587 {
-		t.Errorf("cfgInt 未解析字符串端口，得到 %d", got)
+		t.Errorf("cfgInt 해결되지 않은 문자열 포트，받았어요 %d", got)
 	}
 	if !cfgBool(cfg, "tls") {
-		t.Error("cfgBool 未解析字符串 \"true\"")
+		t.Error("cfgBool 구문 분석되지 않은 문자열 \"true\"")
 	}
 	if to := cfgStrings(cfg, "to"); len(to) != 1 || to[0] != "d@e.f" {
-		t.Errorf("cfgStrings 未兼容单字符串，得到 %v", to)
+		t.Errorf("cfgStrings 단일 문자열이 호환되지 않음，받았어요 %v", to)
 	}
 }
 
-// TestFilterValidateRejectsTypo 是审计修复的直接验证：
-// 门槛打错字必须在写入时被拦，否则过滤器会静默失效变成全推。
+// TestFilterValidateRejectsTypo 은 감사수리 직접검증입니다：
+// 임계값 오타는 작성시 차단되어야 합니다，그렇지 않으면 필터가 자동으로 실패하고 전체 푸시가 됩니다.。
 func TestFilterValidateRejectsTypo(t *testing.T) {
 	good := []string{"", "low", "medium", "high", "critical"}
 	for _, s := range good {
 		if err := (Filter{MinSeverity: s}).Validate(); err != nil {
-			t.Errorf("合法门槛 %q 被拒: %v", s, err)
+			t.Errorf("법적 기준점 %q 거부됨: %v", s, err)
 		}
 	}
-	// 这些是真实会发生的笔误——全部必须被拒。
-	for _, s := range []string{"hgih", "HIGH", "严重", "high ", "crit"} {
+	// 실제로 발생하는 사무적인 오류입니다.——모두 거절해야 함。
+	for _, s := range []string{"hgih", "HIGH", "심각해요", "high ", "crit"} {
 		err := (Filter{MinSeverity: s}).Validate()
 		if err == nil {
-			t.Errorf("非法门槛 %q 应被拒绝（否则过滤器静默失效、变成全推）", s)
+			t.Errorf("잘못된 임계값 %q 은 거부되어야 합니다（그렇지 않으면 필터가 자동으로 실패합니다.、가 풀 푸시가 됩니다.）", s)
 			continue
 		}
-		// 错误信息要能指导用户改对。
+		// 오류 메시지는 사용자에게 오류를 수정하도록 안내할 수 있어야 합니다.。
 		if !strings.Contains(err.Error(), "low") || !strings.Contains(err.Error(), "critical") {
-			t.Errorf("错误信息应列出可选值，得到 %q", err.Error())
+			t.Errorf("오류 메시지에는 선택적 값이 나열되어야 합니다.，받았어요 %q", err.Error())
 		}
 	}
 }
 
-// TestFilterValidateIsWriteTimeOnly 锁住「写入严、读取宽」的分工：
-// 库里已有的坏值不能让渠道整个读不出来（那会让历史渠道突然全部停止推送）。
+// TestFilterValidateIsWriteTimeOnly 자물쇠「옌 쓰세요、읽기 폭」의 분업：
+// 라이브러리에 있는 기존 잘못된 값을 채널에서 읽는 것을 완전히 차단할 수는 없습니다.（이로 인해 모든 과거 채널이 갑자기 푸시를 중단하게 됩니다.）。
 func TestFilterValidateIsWriteTimeOnly(t *testing.T) {
 	raw := []byte(`{"min_severity":"hgih"}`)
-	f := ParseFilter(raw) // 不报错
+	f := ParseFilter(raw) // 보고된 오류가 없습니다.
 	if f.MinSeverity != "hgih" {
-		t.Fatalf("读取路径应原样保留，得到 %q", f.MinSeverity)
+		t.Fatalf("읽기 경로는 그대로 두어야 합니다.，받았어요 %q", f.MinSeverity)
 	}
-	// 且该渠道仍能对事件做出判定（不 panic、不阻塞）。
+	// 그리고 이 채널은 여전히 사건에 대한 판단을 내릴 수 있습니다.（아니요 panic、차단 없음）。
 	_ = Match(f, Snapshot{Kind: EventFindingCreated, Severity: "critical"})
 }

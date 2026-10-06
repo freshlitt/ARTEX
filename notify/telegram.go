@@ -9,39 +9,39 @@ import (
 	"strings"
 )
 
-// telegramTextLimit 是 Telegram sendMessage 的 text 字段上限（字符数）。
+// telegramTextLimit 네 Telegram sendMessage 님 text 필드 상한（문자수）。
 const telegramTextLimit = 4096
 
-// telegramChannel 实现 Telegram Bot API。
+// telegramChannel 구현 Telegram Bot API。
 //
-// 平台特性：
-//   - 鉴权全部在 URL path 里（/bot<token>/sendMessage），无需加签。
-//   - 用 HTML 解析模式而不是 MarkdownV2：MarkdownV2 要求转义 `_*[]()~`>#+-=|{}.!`
-//     共 18 个字符，漏一个就整条消息被拒；HTML 只需转义 & < > 三个。
-//   - 业务错误同样藏在 HTTP 200 里，靠 ok 字段判断。
+// 플랫폼 기능：
+//   - 인증은 올인 URL path 내부（/bot<token>/sendMessage），서명이 필요하지 않습니다.。
+//   - 사용 HTML 대신 패턴을 구문 분석합니다. MarkdownV2：MarkdownV2 이스케이프가 필요합니다. `_*[]()~`>#+-=|{}.!`
+//     합계 18 문자，하나의 메시지가 누락되면 전체 메시지가 거부됩니다.；HTML 그냥 탈출해라 & < > 셋。
+//   - 비즈니스 오류도 숨겨져 있습니다. HTTP 200 내부，젠장 ok 현장심사。
 type telegramChannel struct{}
 
 func (telegramChannel) Kind() string { return KindTelegram }
 
-// Telegram 单聊约 1 条/秒、群组 20 条/分钟。取保守值。
+// Telegram 단일 채팅 약속 1 글/초、그룹 20 글/분。보수적인 가치를 취하라。
 func (telegramChannel) DefaultRatePerMin() int { return 20 }
 
-// Bot Token 是完整凭据；chat_id 只是收件人，不算秘密（拿到它没有 Token 也发不了消息）。
+// Bot Token 은 완전한 자격 증명입니다.；chat_id 받는 사람만요，비밀은 아니야（받으셨나요? Token 메시지도 보낼 수 없어요）。
 func (telegramChannel) SecretKeys() []string { return []string{"bot_token"} }
 
-// base_url 决定 Token 被发往哪个 API 端点（如自建反代），改它必须重新表态 Token。
+// base_url 결정 Token 어느쪽으로 보내나요? API 끝점（나만의 역세대를 구축한다면），바꾸려면 입장을 다시 밝혀야 합니다 Token。
 func (telegramChannel) DestinationKeys() []string { return []string{"base_url"} }
 
 func (telegramChannel) Validate(cfg map[string]any) error {
 	if cfgString(cfg, "bot_token") == "" {
-		return errors.New("缺少 Bot Token")
+		return errors.New("없어짐 Bot Token")
 	}
 	if cfgString(cfg, "chat_id") == "" {
-		return errors.New("缺少 Chat ID")
+		return errors.New("없어짐 Chat ID")
 	}
 	if base := cfgString(cfg, "base_url"); base != "" {
 		if err := validateHTTPURL(base); err != nil {
-			return fmt.Errorf("API 地址无效: %w", err)
+			return fmt.Errorf("API 주소가 잘못되었습니다.: %w", err)
 		}
 	}
 	return nil
@@ -72,21 +72,21 @@ func (c telegramChannel) Send(ctx context.Context, cfg map[string]any, m Message
 		Description string `json:"description"`
 	}
 	if err := json.Unmarshal(raw, &res); err != nil {
-		return 0, fmt.Errorf("解析 Telegram 响应失败: %w (%s)", err, snippet(raw))
+		return 0, fmt.Errorf("분석 Telegram 응답 실패: %w (%s)", err, snippet(raw))
 	}
 	if res.OK {
 		return kept, nil
 	}
-	// 429 是限流，退避后重试有效；其余（400 参数错、401 token 错、403 被拉黑、
-	// 404 chat 不存在）都是配置问题，重试不会自愈。
+	// 429 은 전류 제한입니다.，백오프 후 재시도는 유효합니다.；나머지는（400 매개변수가 잘못되었습니다.、401 token 틀렸어요、403 블랙리스트에 등록됨、
+	// 404 chat 이 존재하지 않습니다）모두 설정 문제입니다，재시도 자체가 복구되지 않음。
 	if res.ErrorCode == 429 {
-		return 0, fmt.Errorf("Telegram 限流: %s", res.Description)
+		return 0, fmt.Errorf("Telegram 전류 제한: %s", res.Description)
 	}
-	return 0, Permanent(fmt.Errorf("Telegram 返回错误 %d: %s", res.ErrorCode, res.Description))
+	return 0, Permanent(fmt.Errorf("Telegram 반환 오류 %d: %s", res.ErrorCode, res.Description))
 }
 
-// telegramEndpoint 拼出 sendMessage 地址。base_url 留空时用官方 API，
-// 非空时用于自建 Bot API 反代（国内网络下的常见需求）。
+// telegramEndpoint 철자 sendMessage 주소。base_url 비워두면 공식을 사용합니다. API，
+// 비어 있지 않은 경우 자체 빌드에 사용됩니다. Bot API 안티세대（국내망 공통 요구사항）。
 func telegramEndpoint(cfg map[string]any) (string, error) {
 	base := cfgString(cfg, "base_url")
 	if base == "" {
@@ -97,21 +97,21 @@ func telegramEndpoint(cfg map[string]any) (string, error) {
 	raw := base + "/bot" + token + "/sendMessage"
 	u, err := url.Parse(raw)
 	if err != nil {
-		// 不透传 err：地址里含 Bot Token，且此时连 addr 都不该回显。
-		return "", fmt.Errorf("拼接 API 地址失败（API 地址：%s）", redactRequestTarget(base))
+		// 투명 전송 없음 err：주소에 다음이 포함됩니다. Bot Token，그리고 이때 연결이 addr 에코되어서는 안 됩니다.。
+		return "", fmt.Errorf("접합 API 주소 실패（API 주소：%s）", redactRequestTarget(base))
 	}
 	return u.String(), nil
 }
 
-// telegramHTML 渲染 HTML 正文，返回正文与实际写入的条目数（见 Channel.Send）。
+// telegramHTML 렌더링 HTML 문자，실제로 작성된 항목 수와 텍스트를 반환합니다.（또 만나요 Channel.Send）。
 func telegramHTML(m Message) (string, int) {
 	var b strings.Builder
 	b.WriteString("<b>" + telegramEscape(markdownTitle(m)) + "</b>\n")
 	if m.Batch {
-		// Telegram 的上限是**字符数**，所以打包也按字符计量（runeSize）。
+		// Telegram 상한은**문자수**，그래서 포장도 문자로 측정됩니다.（runeSize）。
 		footer := ""
 		if m.HomeURL != "" {
-			footer = fmt.Sprintf("\n\n<a href=\"%s\">在平台中查看全部</a>", telegramEscapeAttr(m.HomeURL))
+			footer = fmt.Sprintf("\n\n<a href=\"%s\">플랫폼 전체 보기</a>", telegramEscapeAttr(m.HomeURL))
 		}
 		kept := packItemCount(m.Items, telegramTextLimit, telegramReservedRunes, footer, runeSize, func(it Item, idx int) string {
 			return telegramBatchLine(it, idx+1)
@@ -130,28 +130,28 @@ func telegramHTML(m Message) (string, int) {
 	}
 	it := m.Items[0]
 	if it.IsStatusChange() {
-		b.WriteString(fmt.Sprintf("\n<b>状态变更</b>：%s → %s",
+		b.WriteString(fmt.Sprintf("\n<b>상태변화</b>：%s → %s",
 			telegramEscape(StatusLabel(it.FromStatus)), telegramEscape(StatusLabel(it.ToStatus))))
 	}
 	if it.VulnClass != "" && it.VulnClass != it.Title() {
-		b.WriteString("\n<b>类型</b>：" + telegramEscape(it.VulnClass))
+		b.WriteString("\n<b>유형</b>：" + telegramEscape(it.VulnClass))
 	}
 	if a := assetLine(it.Assets, maxAssetsShown); a != "" {
-		b.WriteString("\n<b>资产</b>：" + telegramEscape(a))
+		b.WriteString("\n<b>자산</b>：" + telegramEscape(a))
 	}
 	if s := OneLine(it.Summary, maxSummaryRunes); s != "" {
-		b.WriteString("\n<b>摘要</b>：" + telegramEscape(s))
+		b.WriteString("\n<b>요약</b>：" + telegramEscape(s))
 	}
 	if it.DetailURL != "" {
-		b.WriteString(fmt.Sprintf("\n\n<a href=\"%s\">查看详情</a>", telegramEscapeAttr(it.DetailURL)))
+		b.WriteString(fmt.Sprintf("\n\n<a href=\"%s\">자세히 보기</a>", telegramEscapeAttr(it.DetailURL)))
 	}
 	return TruncateHTML(b.String(), telegramTextLimit), 1
 }
 
-// telegramReservedRunes 预留给消息标题与可能出现的截断提示（按字符计）。
+// telegramReservedRunes 메시지 제목 및 가능한 잘림 프롬프트용으로 예약됨（문자별）。
 const telegramReservedRunes = 160
 
-// telegramBatchLine 渲染汇总里的一条（未转义，由调用方统一转义）。
+// telegramBatchLine 렌더링 요약 항목（이스케이프되지 않음，호출자가 균일하게 이스케이프했습니다.）。
 func telegramBatchLine(it Item, idx int) string {
 	if a := assetLine(it.Assets, maxAssetsShown); a != "" {
 		return fmt.Sprintf("%d. %s · %s — %s", idx, SeverityLabel(it.Severity), it.Title(), a)
@@ -159,22 +159,22 @@ func telegramBatchLine(it Item, idx int) string {
 	return fmt.Sprintf("%d. %s · %s", idx, SeverityLabel(it.Severity), it.Title())
 }
 
-// telegramBatchTitle 渲染汇总消息的标题行。条数用的是**本条实际包含**的条数，
-// 而不是本批总数——否则读者会以为消息头写的数字就是全部。
+// telegramBatchTitle 요약 메시지의 헤더 라인을 렌더링합니다.。막대 개수는**이 글에는 실제로 다음과 같은 내용이 포함되어 있습니다.**수，
+// ——그렇지 않으면 독자들은 메시지 헤더에 적힌 숫자가 전부라고 생각할 것입니다.。
 func telegramBatchTitle(m Message, items []Item, total int) string {
-	title := fmt.Sprintf("漏洞汇总 · 共 %d 条", total)
+	title := fmt.Sprintf("취약점 요약 · 합계 %d 글", total)
 	if extra := total - len(items); extra > 0 {
-		title += fmt.Sprintf("（显示前 %d 条，其余 %d 条下一条继续）", len(items), extra)
+		title += fmt.Sprintf("（표시하기 전 %d 글，나머지는 %d 다음으로 계속）", len(items), extra)
 	}
 	if m.WindowMinutes > 0 {
-		title = fmt.Sprintf("近 %d 分钟 · %s", m.WindowMinutes, title)
+		title = fmt.Sprintf("근처 %d 분 · %s", m.WindowMinutes, title)
 	}
 	return title
 }
 
-// telegramEscape 转义 HTML 文本内容。
-// Telegram 只认这三种实体，转义后 &amp; 之类的已有实体会被二次转义——这正是
-// 期望行为：我们要显示的是原始字符，不是让用户注入 HTML。
+// telegramEscape 탈출 HTML 텍스트 내용。
+// Telegram 이 세 엔터티만 인식합니다.，탈출 후 &amp; 과 같은 기존 엔터티는 두 번 이스케이프됩니다.——바로 이것이다.
+// 예상되는 동작：우리가 보여주고 싶은 것은 원작의 캐릭터다.，사용자에게 주입을 시키는 것이 아닙니다. HTML。
 func telegramEscape(s string) string {
 	s = strings.ReplaceAll(s, "&", "&amp;")
 	s = strings.ReplaceAll(s, "<", "&lt;")
@@ -182,8 +182,8 @@ func telegramEscape(s string) string {
 	return s
 }
 
-// telegramEscapeAttr 转义 HTML 属性值。在文本转义之外还要处理引号——
-// URL 里带引号会提前闭合 href 属性，把后面的内容变成注入点。
+// telegramEscapeAttr 탈출 HTML 속성 값。텍스트 이스케이프 외에 따옴표 처리——
+// URL 안의 따옴표는 조기 마감됩니다 href 속성，다음 내용을 주입점으로 바꿔보세요。
 func telegramEscapeAttr(s string) string {
 	s = telegramEscape(s)
 	s = strings.ReplaceAll(s, "\"", "&quot;")

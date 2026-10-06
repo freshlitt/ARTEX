@@ -90,8 +90,8 @@ type taskLLMSelection struct {
 	profileID int64
 	revision  int64
 	provider  llm.Provider
-	// retry 是这次选中的配置解析出来的重试参数(profile 覆盖 → 全局策略 → 内置默认)。
-	// 同 provider 安全窗口重试按它走,所以换了 profile 就换一套重试节奏。
+	// retry 은 선택한 구성에서 구문 분석된 재시도 매개 변수입니다.(profile 재정의 → 글로벌 전략 → 기본 내장)。
+	// 마찬가지예요 provider 안전 창 다시 시도 눌러서 이동하세요,그래서 바꿨어요 profile 그냥 리듬바꿔서 다시해보세요。
 	retry agent.RetryConfig
 }
 
@@ -102,11 +102,11 @@ type taskLLMStreamHooks struct {
 }
 
 // current resolves the provider this role runs on, by precedence:
-// Agent 绑定 → 任务 LLM 配置链 → 全局/环境配置。
-// 绑定优先于任务链：某个角色被显式指定了模型，就一直跑在那个模型上；绑定不存在或
-// 构建失败时才降级到任务链，任务链为空时再降级到全局配置。
-// 返回的 profile id 只有走任务链时才非零 —— streamTaskLLM 以此判断额度错误是否
-// 应该推进任务的故障转移状态（绑定/全局路径不改任务链状态，沿用既有语义）。
+// Agent 바인딩 → 임무 LLM 구성 체인 → 글로벌/환경 구성。
+// 바인딩이 작업 연결보다 우선합니다.：역할에 모델이 명시적으로 할당됨，그 모델로 계속 달리고 있어요；바인딩이 존재하지 않거나
+// 빌드가 실패할 경우에만 작업 체인으로 다운그레이드，작업 체인이 비어 있으면 전역 구성으로 다운그레이드。
+// 반환됨 profile id 작업 체인을 따르는 경우에만 0이 아님 —— streamTaskLLM 이를 이용하여 금액이 틀린지 판단하세요.
+// 작업의 장애 조치 상태는 고급이어야 합니다.（바인딩/전역 경로는 작업 체인 상태를 변경하지 않습니다.，기존 의미 체계 사용）。
 func (r *taskLLMRuntime) current() (taskLLMSelection, error) {
 	taskNum, err := parseTaskID(r.taskID)
 	if err != nil {
@@ -184,7 +184,7 @@ func (r *taskLLMRuntime) nonStreaming() bool {
 // maxTokens returns the currently-active source's per-reply output cap.
 // Unresolvable → 0, i.e. send no cap, matching the pre-setting behaviour.
 func (r *taskLLMRuntime) maxTokens() int {
-	cfg, _ := r.activeCfg() // 未解析出配置时是零值 0
+	cfg, _ := r.activeCfg() // 구성이 구문 분석되지 않은 경우 값이 0입니다. 0
 	return cfg.MaxTokens
 }
 
@@ -246,18 +246,18 @@ func completeTaskLLM(ctx context.Context, taskID string, req llm.CompletionReque
 			usage   llm.Usage
 			callErr error
 		)
-		// 同 provider 安全窗口重试:非流式调用要么整体成功、要么整体失败,没有
-		// 中途已交付输出的问题,所以任何瞬时失败都可原样重试。
+		// 마찬가지예요 provider 안전창 재시도:비스트리밍 통화 또는 전반적인 성공、아니면 전체적인 실패,아니요
+		// 출력이 중간에 전달되는 문제,따라서 일시적인 오류는 있는 그대로 재시도할 수 있습니다.。
 		retries, backoffOf := sameProviderRetryPolicy(selection.retry)
 		for attempt := 0; ; attempt++ {
 			msg, sr, usage, callErr = selection.provider.Complete(ctx, req)
 			if callErr != nil && ctx.Err() == nil &&
 				attempt < retries && isRetryableStreamError(callErr) {
 				backoff := backoffOf(attempt)
-				log.Printf("[task-llm] task %s 非流式调用失败,%v 后同 provider 重试 (%d/%d): %v",
+				log.Printf("[task-llm] task %s 비스트리밍 통화 실패,%v 아래와 동일 provider 다시 시도해보세요 (%d/%d): %v",
 					taskID, backoff, attempt+1, retries, callErr)
 				if sleepCtx(ctx, backoff) {
-					break // 退避期间 ctx 取消 → 停止重试
+					break // 탈퇴기간 중 ctx 취소 → 재시도 중지
 				}
 				continue
 			}
@@ -266,7 +266,7 @@ func completeTaskLLM(ctx context.Context, taskID string, req llm.CompletionReque
 		if callErr == nil {
 			return msg, sr, usage, nil
 		}
-		// profileID=0: 显式链已被清空;非额度错误:透传。二者都不改任务 failover 状态。
+		// profileID=0: 명시적 체인이 삭제되었습니다.;무제한 오류:투명한 전송。둘 다 작업을 변경하지 않습니다. failover 상태。
 		if selection.profileID == 0 || !isQuotaExhaustedError(callErr) {
 			return llm.Message{}, "", llm.Usage{}, callErr
 		}
@@ -280,7 +280,7 @@ func completeTaskLLM(ctx context.Context, taskID string, req llm.CompletionReque
 		if !transition.Stale && transition.NextProfileID == nil {
 			return llm.Message{}, "", llm.Usage{}, &taskLLMError{taskID: taskID, chainExhausted: transition.ChainExhausted, cause: callErr}
 		}
-		// 没有任何输出交付给调用方,换下一个 profile 重放同一逻辑请求是安全的。
+		// 호출자에게 출력이 전달되지 않습니다.,다음으로 변경 profile 동일한 논리적 요청을 재생하는 것이 안전합니다.。
 	}
 }
 
@@ -296,9 +296,9 @@ func streamTaskLLM(ctx context.Context, taskID string, req llm.CompletionRequest
 			var pending []llm.StreamEvent
 			var streamErr error
 			retries, backoffOf := sameProviderRetryPolicy(selection.retry)
-			// 同 provider 安全窗口重试:committed 之前(还没向调用方交付任何输出)
-			// 的瞬时失败可以原样重放,不会重复模型输出或工具执行。committed 之后、
-			// ctx 取消、或确定性/额度错误则跳出,交给下方原有的透传/故障转移逻辑。
+			// 마찬가지예요 provider 안전창 재시도:committed 전에(아직 호출자에게 출력이 전달되지 않았습니다.)
+			// 의 일시적인 오류는 변경 없이 재생할 수 있습니다.,모델 출력이나 도구 실행을 복제하지 않습니다.。committed 이후、
+			// ctx 취소、또는 확실성/금액이 틀리면 팝업이 뜹니다.,아래 원문투명송에 맡겨주세요/장애 조치 논리。
 			for attempt := 0; ; attempt++ {
 				committed = false
 				pending = nil
@@ -328,10 +328,10 @@ func streamTaskLLM(ctx context.Context, taskID string, req llm.CompletionRequest
 				if streamErr != nil && !committed && ctx.Err() == nil &&
 					attempt < retries && isRetryableStreamError(streamErr) {
 					backoff := backoffOf(attempt)
-					log.Printf("[task-llm] task %s 提交前流失败,%v 后同 provider 重试 (%d/%d): %v",
+					log.Printf("[task-llm] task %s 스트림을 제출하지 못했습니다.,%v 아래와 동일 provider 다시 시도해보세요 (%d/%d): %v",
 						taskID, backoff, attempt+1, retries, streamErr)
 					if sleepCtx(ctx, backoff) {
-						break // 退避期间 ctx 取消 → 停止重试
+						break // 탈퇴기간 중 ctx 취소 → 재시도 중지
 					}
 					continue
 				}
@@ -394,23 +394,23 @@ func streamEventCommitsOutput(event llm.StreamEvent) bool {
 	}
 }
 
-// 提交前安全窗口内、对同一 provider 的【默认】重试次数。SDK 的 doStream 只重试建连
-// 阶段(拿到 200 之前);流一旦开始,中途断流 / overloaded / 流内 429 等瞬时故障会直接
-// 冒泡成 model_error,零重试。只要一个 token 都还没交给调用方(!committed),重放
-// 完全相同的请求就不会重复模型输出或工具副作用,因此这里补一层同 provider 退避重试,
-// 把这类抖动挡在意图整体重跑之前。可被 LLM 配置的重试覆盖/全局重试策略改写。
+// 제출 전 안전창 내에서、똑같습니다 provider 님【기본값】재시도 횟수。SDK 님 doStream 연결을 다시 시도해보세요.
+// 무대(알겠습니다 200 전에);흐름이 시작되면,도중에 흐름이 중단됩니다. / overloaded / 흐름 내에서 429 및 기타 순간적인 결함은 직접 발생합니다.
+// 거품이 난다. model_error,제로 재시도。하나만요 token 아직 발신자에게 전달되지 않았습니다.(!committed),재생
+// 정확히 동일한 요청으로 인해 모델 출력이나 도구 부작용이 중복되지 않습니다.,여기에 동일한 레이어가 있습니다. provider 물러서서 다시 시도해 보세요,
+// 전체 실행을 다시 시작하기 전에 이러한 종류의 지터를 차단하십시오.。할 수 있습니다 LLM 구성된 재시도 재정의/글로벌 재시도 전략 재작성。
 const sameProviderStreamRetries = 2
 
-// sameProviderRetryBackoff 是第 attempt 次重试前的【默认】退避(0.5s、1s…,上限 4s),
-// 与 SDK 的指数梯度同风格但封顶更小,避免拖住 worker 的收尾/取消响应。
-// 以变量形式暴露,便于测试将退避置零。
+// sameProviderRetryBackoff 처음이야 attempt 회【기본값】물러서세요(0.5s、1s…,상한 4s),
+// 그리고 SDK 의 지수 그래디언트는 스타일은 동일하지만 캡이 더 작습니다.,지연 방지 worker 의 끝/응답 취소。
+// 가변형으로 노출됨,테스트 목적으로 백오프를 0으로 설정합니다.。
 var sameProviderRetryBackoff = func(attempt int) time.Duration {
 	return min(500*time.Millisecond*(1<<attempt), 4*time.Second)
 }
 
-// sameProviderRetryPolicy 解析这次调用用哪套同 provider 重试参数:配置里设了次数就
-// 用配置的(负数 = 关掉这层重试),设了间隔就把指数退避换成固定间隔,两者都没设时
-// 与改可配之前逐字节一致。
+// sameProviderRetryPolicy 이 호출을 구문 분석하려면 어떤 API 세트를 사용해야 합니까? provider 재시도 매개변수:구성에서 횟수만 설정하면 됩니다.
+// 구성됨(음수 = 이 레이어를 끄고 다시 시도해보세요),간격이 설정된 경우 지수 백오프를 고정 간격으로 대체합니다.,둘다 시간이 안맞아요
+// 구성을 변경하기 전과 바이트 단위로 동일합니다.。
 func sameProviderRetryPolicy(r agent.RetryConfig) (retries int, backoff func(int) time.Duration) {
 	retries, backoff = sameProviderStreamRetries, sameProviderRetryBackoff
 	if r.StreamAttempts != 0 {
@@ -423,11 +423,11 @@ func sameProviderRetryPolicy(r agent.RetryConfig) (retries int, backoff func(int
 	return retries, backoff
 }
 
-// isRetryableStreamError 判断「提交前的流失败」是否值得在同一 provider 上重放。
-// 瞬时的传输中断 / 供应商过载 / 限流会自行恢复,可安全重试;而以下三类不重试:
-//   - 额度耗尽:交给 profile 故障转移处理,别在这里白烧重试
-//   - 上下文过长:相同请求重放也没用,交给 harness 的 reactive 压缩兜底
-//   - 4xx 确定性拒绝(400/401/403/404/422):到哪个 provider 都一样会失败
+// isRetryableStreamError 판결「제출 전 스트리밍 실패」같은 입장에 있을 가치가 있는 걸까 provider 에서 재생。
+// 일시적인 전송 중단 / 공급업체 과부하 / 현재 제한이 자동으로 복원됩니다.,다시 시도해도 안전합니다.;다음 세 가지 카테고리는 재시도하지 않습니다.:
+//   - 할당량 소진:줘 profile 장애 조치 처리 중,여기서 시간낭비하지 마시고 다시 시도해보세요.
+//   - 문맥이 너무 깁니다.:같은 요청을 반복해도 소용이 없습니다,줘 harness 님 reactive 압축
+//   - 4xx 확실한 거절(400/401/403/404/422):어느쪽이요? provider 다 실패할 거예요
 func isRetryableStreamError(err error) bool {
 	if err == nil {
 		return false
@@ -446,8 +446,8 @@ func isRetryableStreamError(err error) bool {
 			return false
 		}
 	}
-	// 其余(传输 reset/EOF/timeout、408/429/5xx、流内 error 事件如 anthropic
-	// overloaded_error 等)一律视为瞬时,允许重试。
+	// 나머지는(전송 reset/EOF/timeout、408/429/5xx、흐름 내에서 error 다음과 같은 이벤트 anthropic
+	// overloaded_error 등)은 항상 즉각적인 것으로 간주됩니다.,재시도 허용。
 	return true
 }
 
@@ -564,37 +564,37 @@ func (s *Server) agentsForTask(t *Task) *taskAgentBundle {
 	wk := agent.NewWorker(workerRuntime, "task-router", s.m.dir, tx, window, s.agentMaxTurns("worker"))
 	wk.SetFindingRecorder(s.evidenceStore())
 	wk.SetCompactionWindowResolver(workerRuntime.CompactionWindow)
-	wk.SetNonStreaming(workerRuntime.nonStreaming) // 按任务当前激活 profile 的流式开关(每轮读)
-	wk.SetMaxTokens(workerRuntime.maxTokens)       // 同上,输出上限也跟随当前激活 profile
-	wk.SetNoaEnabled(s.m.NoaCompactionEnabled)     // 实验功能:noa 上下文压缩(平台级开关,每 run 读)
+	wk.SetNonStreaming(workerRuntime.nonStreaming) // 현재 작업에 의해 활성화됨 profile 의 흐름 스위치(라운드마다 읽어보세요)
+	wk.SetMaxTokens(workerRuntime.maxTokens)       // 위와 동일,출력 상한도 현재 활성화를 따릅니다. profile
+	wk.SetNoaEnabled(s.m.NoaCompactionEnabled)     // 실험적 기능:noa 컨텍스트 압축(플랫폼 레벨 스위치,매 run 읽기)
 	wk.SetRunTimeout(time.Duration(s.agentRunSeconds("worker")) * time.Second)
 	wk.SetProxy(s.m.ProxyAddr(), s.m.ProxyCACert())
 	wk.SetWebSearch(s.webSearchFor("worker"))
-	wk.SetConstraintInject(s.constraintInjectWorker) // 操作约束注入 worker(可配置,默认开)
+	wk.SetConstraintInject(s.constraintInjectWorker) // 연산 제약 주입 worker(구성 가능,기본적으로 켜져 있음)
 	pl := agent.NewPlanner(plannerRuntime, "task-router", s.m.dir, tx, plannerRuntime.CompactionWindow(), s.agentMaxTurns("planner"))
 	pl.SetFindingRecorder(s.evidenceStore())
 	pl.SetCompactionWindowResolver(plannerRuntime.CompactionWindow)
 	pl.SetNonStreaming(plannerRuntime.nonStreaming)
 	pl.SetMaxTokens(plannerRuntime.maxTokens)
-	pl.SetNoaEnabled(s.m.NoaCompactionEnabled) // 实验功能:noa 上下文压缩(平台级开关,每 run 读)
+	pl.SetNoaEnabled(s.m.NoaCompactionEnabled) // 실험적 기능:noa 컨텍스트 압축(플랫폼 레벨 스위치,매 run 읽기)
 	pl.SetKillWork(s.engine.KillWork)
 	pl.SetSteerWork(s.engine.SteerWork)
 	pl.SetProxy(s.m.ProxyAddr(), s.m.ProxyCACert())
 	pl.SetWebSearch(s.webSearchFor("planner"))
-	pl.SetConstraintInject(s.constraintInjectPlanner) // 操作约束注入 planner(可配置,默认开)
-	// cold-digest §7: 冷节点后台压缩。引擎经权威解析器实际驱动的就是这套 per-task planner
-	// (agentsForTask),Compactor 必须接在这里。走任务路由的 planner provider(§4:与 agent
-	// 同模型,随任务 LLM 链解析),压缩用 Complete 一次性生成 body。
+	pl.SetConstraintInject(s.constraintInjectPlanner) // 연산 제약 주입 planner(구성 가능,기본적으로 켜져 있음)
+	// cold-digest §7: 콜드 노드 백그라운드 압축。엔진은 실제로 권위 있는 파서에 의해 구동됩니다. per-task planner
+	// (agentsForTask),Compactor 여기에 연결해야 합니다。작업 라우팅을 수행합니다. planner provider(§4:그리고 agent
+	// 동일모델,업무에 따라 LLM 연쇄분석),압축용 Complete 일회성 생성 body。
 	pl.SetCompactor(agent.NewCompactor(plannerRuntime, "task-router"))
 	main := agent.NewMainAgent(mainRuntime, "task-router", s.m.dir, tx, mainRuntime.CompactionWindow(), s.agentMaxTurns("mainagent"))
 	main.SetFindingRecorder(s.evidenceStore())
 	main.SetCompactionWindowResolver(mainRuntime.CompactionWindow)
 	main.SetNonStreaming(mainRuntime.nonStreaming)
 	main.SetMaxTokens(mainRuntime.maxTokens)
-	main.SetNoaEnabled(s.m.NoaCompactionEnabled) // 实验功能:noa 上下文压缩(平台级开关,每 run 读)
+	main.SetNoaEnabled(s.m.NoaCompactionEnabled) // 실험적 기능:noa 컨텍스트 압축(플랫폼 레벨 스위치,매 run 읽기)
 	main.SetProxy(s.m.ProxyAddr(), s.m.ProxyCACert())
 	main.SetWebSearch(s.webSearchFor("mainagent"))
-	main.SetSteerWork(s.engine.SteerWork) // steer_work：人对运行中 work 实时纠偏
+	main.SetSteerWork(s.engine.SteerWork) // steer_work：쌍이 실행 중입니다. work 실시간 수정
 	bundle := &taskAgentBundle{
 		runtime: goalRuntime, plannerRuntime: plannerRuntime, workerRuntime: workerRuntime,
 		mainRuntime: mainRuntime, pl: pl, wk: wk, main: main,
@@ -626,13 +626,13 @@ func (s *Server) emitTaskLLMTransition(t *Task, transition db.TaskLLMTransition,
 	}
 	mode := "automatic"
 	kind := "llm_switch"
-	summary := fmt.Sprintf("%s 额度不足", llmAuditProfileLabel(previous))
+	summary := fmt.Sprintf("%s 할당량이 부족합니다.", llmAuditProfileLabel(previous))
 	if transition.NextProfileID != nil {
-		summary += fmt.Sprintf("，后续调用切换到 %s", llmAuditProfileLabel(next))
+		summary += fmt.Sprintf("，후속 통화는 다음으로 전환됩니다. %s", llmAuditProfileLabel(next))
 	} else {
 		mode = "exhausted"
 		kind = "llm_failover"
-		summary += "，配置链已耗尽"
+		summary += "，구성 체인이 소진되었습니다."
 	}
 	metadata, _ := json.Marshal(llmActivityMetadata{LLMTransition: llmTransitionAudit{
 		Mode: mode, Reason: cause.Error(), Previous: previous, Next: next,
@@ -647,18 +647,18 @@ func (s *Server) llmAuditProfile(id int64) *llmAuditProfile {
 	}
 	p, err := s.m.pg.ProfileByID(id)
 	if err != nil || p == nil {
-		return &llmAuditProfile{ID: id, Name: fmt.Sprintf("配置 #%d", id)}
+		return &llmAuditProfile{ID: id, Name: fmt.Sprintf("구성 #%d", id)}
 	}
 	return &llmAuditProfile{ID: p.ID, Name: p.Name, Format: p.Format, Model: p.Model}
 }
 
 func llmAuditProfileLabel(profile *llmAuditProfile) string {
 	if profile == nil {
-		return "默认配置"
+		return "기본 구성"
 	}
 	name := profile.Name
 	if name == "" {
-		name = fmt.Sprintf("配置 #%d", profile.ID)
+		name = fmt.Sprintf("구성 #%d", profile.ID)
 	}
 	detail := []string{}
 	if profile.Format != "" {
@@ -689,9 +689,9 @@ func (s *Server) emitManualTaskLLMSwitch(t *Task, previousID, nextID *int64) db.
 	if nextID != nil {
 		next = s.llmAuditProfile(*nextID)
 	}
-	summary := fmt.Sprintf("用户手动将任务 LLM 从 %s 切换到 %s", llmAuditProfileLabel(previous), llmAuditProfileLabel(next))
+	summary := fmt.Sprintf("사용자가 작업을 수동으로 설정합니다. LLM 님으로부터 %s 전환 %s", llmAuditProfileLabel(previous), llmAuditProfileLabel(next))
 	metadata, _ := json.Marshal(llmActivityMetadata{LLMTransition: llmTransitionAudit{
-		Mode: "manual", Reason: "用户手动切换任务 LLM", Previous: previous, Next: next,
+		Mode: "manual", Reason: "사용자가 수동으로 작업 전환 LLM", Previous: previous, Next: next,
 	}})
 	return s.engine.emitActivity(t, db.Activity{Worker: "system", Kind: "llm_switch", Summary: summary, Detail: summary, Metadata: metadata})
 }

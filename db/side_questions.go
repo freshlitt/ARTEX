@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 )
 
-var ErrSideBusy = errors.New("当前会话已有旁路问题正在回答")
-var ErrSideParentGone = errors.New("旁路父会话已删除或归档")
+var ErrSideBusy = errors.New("현재 세션에는 우회 질문에 답변하는 중입니다.")
+var ErrSideParentGone = errors.New("우회 상위 세션이 삭제되거나 보관되었습니다.")
 
 // Lock the real parent before the side session, also covering soft task/intent
 // deletion. A delayed checkpoint cannot recreate data after archive cleanup.
@@ -173,7 +173,7 @@ func (d *DB) StartSideRequest(ctx context.Context, s sidequestion.Snapshot, clie
 	e, err := scanSide(tx.QueryRowContext(ctx, `SELECT `+sideCols+` FROM side_question_requests WHERE session_key=$1 AND generation=$2 AND client_id=$3`, s.Parent.Key(), generation, clientID))
 	if err == nil {
 		if e.Question != question {
-			return nil, false, fmt.Errorf("同一请求 ID 不能用于不同问题")
+			return nil, false, fmt.Errorf("같은 요청 ID 은 다른 문제에 사용할 수 없습니다.")
 		}
 		return &e, false, tx.Commit()
 	}
@@ -283,6 +283,6 @@ AND EXISTS(SELECT 1 FROM side_question_requests r WHERE r.id=$4 AND r.session_ke
 }
 
 func (d *DB) InterruptSideRequests(ctx context.Context) error {
-	_, err := d.ExecContext(ctx, `UPDATE side_question_requests SET status='interrupted',error='服务重启，回答已中断',sequence=sequence+1 WHERE status='running'`)
+	_, err := d.ExecContext(ctx, `UPDATE side_question_requests SET status='interrupted',error='서비스 재시작，답변이 중단되었습니다',sequence=sequence+1 WHERE status='running'`)
 	return err
 }

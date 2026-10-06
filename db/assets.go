@@ -12,7 +12,7 @@ import (
 )
 
 // =====================================================================
-// 统一资产表
+// 통합 자산 테이블
 // =====================================================================
 
 // Asset is a row in the assets table.
@@ -317,8 +317,8 @@ func ValidateAssetIP(value string) error {
 		return nil
 	}
 	return fmt.Errorf(
-		"%w: ip 必须是 IPv4/IPv6 地址，收到 %q。若这是主机名，请改用 type=subdomain 并填 domain 字段；"+
-			"若确实要登记地址，请先解析出 A/AAAA 记录，再用解析出的地址填 ip",
+		"%w: ip 반드시 IPv4/IPv6 주소，받음 %q。호스트 이름인 경우，대신 사용해 주세요 type=subdomain 입력하고 domain 필드；"+
+			"꼭 주소 등록을 하고 싶다면，먼저 파싱해 보세요 A/AAAA 기록，그럼 해결된 주소를 채워주세요 ip",
 		ErrAssetIPInvalid, value)
 }
 

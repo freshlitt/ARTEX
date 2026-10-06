@@ -5,16 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// 抽屉/对话框(Sheet/Dialog)的 onInteractOutside 关闭判定辅助。
+// 서랍/대화 상자(Sheet/Dialog)님 onInteractOutside 판단지원 꺼주세요。
 //
-// 背景:抽屉内的 Radix 弹层(Select 下拉、DropdownMenu、Popover 等)会 portal 到抽屉
-// 之外。开着弹层时点遮罩/抽屉外想收起它,这一次 pointerdown 会被 Select 和 Sheet 两个
-// DismissableLayer 同时处理;Select 先关闭且是 discrete 事件、React 会同步 flush,于是
-// 轮到 Sheet 的处理器时弹层的 data-state 早已翻成 closed —— 在"当下"检测弹层是否打开
-// 天然不可靠(实测已验证)。
+// 배경:서랍 속에 Radix 탄성층(Select 드롭다운、DropdownMenu、Popover 등)예 portal 서랍으로
+// 외부。탄성 레이어가 켜진 상태에서 마스크를 클릭하세요./서랍밖으로 치워두고 싶다,이번에는 pointerdown 입니다 Select 그리고 Sheet 둘
+// DismissableLayer 동시에 처리됨;Select 먼저 닫고 예 discrete 이벤트、React 이 동기화됩니다. flush,그래서
+// 당신 차례예요 Sheet 의 프로세서는 탄성층입니다. data-state 은(는) 다음 언어로 번역되었습니다. closed —— 에"지금"탄성층이 열려 있는지 확인하세요
+// 당연히 신뢰할 수 없음(실측으로 확인함)。
 //
-// 正确做法:Radix 的 pointerdown 监听在冒泡阶段;我们在 capture 阶段(早于它)先把
-// "此刻有没有弹层开着"记录下来,onInteractOutside 再读这个记录值来决定是否放行关闭。
+// 올바른 접근 방식:Radix 님 pointerdown 모니터링은 버블링 단계입니다.;우리는 capture 무대(그보다 먼저)먼저
+// "지금 혹시 탄성층이 열려있나요?"녹음해 보세요,onInteractOutside 이 레코드 값을 다시 읽고 종료 해제 여부를 결정하십시오.。
 function isRadixOverlayOpenNow(): boolean {
   if (typeof document === "undefined") return false;
   return !!document.querySelector(
@@ -35,26 +35,26 @@ if (typeof document !== "undefined") {
     () => {
       overlayOpenAtLastPointerDown = isRadixOverlayOpenNow();
     },
-    true, // capture:抢在 Radix 冒泡阶段的 pointerdown 处理器之前记录
+    true, // capture:먼저 받아보세요 Radix 버블링 단계에서 pointerdown 프로세서 이전 기록
   );
 }
 
-// radixOverlayWasOpenAtPointerDown 返回"最近一次 pointerdown 发生时是否有 Radix 弹层
-// 开着"。抽屉/对话框据此:开着弹层时点遮罩 → 只收弹层、不关自身。
+// radixOverlayWasOpenAtPointerDown 복귀"지난번에 pointerdown 그런 게 있었나요? Radix 탄성층
+// 열려 있는"。서랍/대화 상자가 나타납니다.:탄성 레이어가 켜진 상태에서 마스크를 클릭하세요. → 탄성층만 채취、너 자신에 관한 것이 아니야。
 export function radixOverlayWasOpenAtPointerDown(): boolean {
   return overlayOpenAtLastPointerDown;
 }
 
-// copyText 把文本写入剪贴板,返回是否成功。
-// 背景:navigator.clipboard 仅在安全上下文(HTTPS / localhost)可用;通过 IP + HTTP
-// 访问时它为 undefined,此时降级到 execCommand("copy")。
+// copyText 클립보드에 텍스트 쓰기,성공 여부를 반환합니다.。
+// 배경:navigator.clipboard 보안 컨텍스트에서만(HTTPS / localhost)가능;합격 IP + HTTP
+// 액세스하면 undefined,이때 다운그레이드는 execCommand("copy")。
 export async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
       return true;
     } catch {
-      // 继续走降级方案
+      // 다운그레이드 계획을 계속 진행하세요.
     }
   }
   try {

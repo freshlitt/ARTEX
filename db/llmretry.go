@@ -5,18 +5,18 @@ import (
 	"time"
 )
 
-// LLM 重试策略：五层重试的「次数 + 间隔」全局配置，见 docs/LLM重试设计.md。
-// 存在 settings 表的一个 JSON 值里 —— 它是整机一份的运行参数，不值得为它开一张表；
-// 读取走内置默认兜底，所以键不存在(全新库/从未配置过)时行为与写死常量时代完全一致。
+// LLM 재시도 전략：레이어 5 재시도「회 + 간격」글로벌 구성，또 만나요 docs/LLM디자인 재시도.md。
+// 존재합니다 settings 테이블 중 하나 JSON 값 —— 전체 기계의 작동 매개변수입니다.，테이블을 열 가치가 없습니다.；
+// 내장된 기본 포켓 읽기，그럼 열쇠가 존재하지 않는군요(새로운 도서관/구성되지 않음)동작은 하드코딩된 상수 시대와 완전히 일치합니다.。
 
 const settingLLMRetryPolicy = "llm_retry_policy"
 
 // RetryRule is one layer's knob pair. The zero value means "unset":
 //
-//	Attempts   0 = 用内置默认次数; -1 = 关闭该层重试; >0 = 用该值
-//	IntervalMS 0 = 用该层原本的间隔策略(通常是指数退避); >0 = 改用固定毫秒间隔
+//	Attempts   0 = 내장된 기본 시간 사용; -1 = 이 레이어를 닫고 다시 시도해 보세요.; >0 = 이 값을 사용하세요
+//	IntervalMS 0 = 이 레이어의 원래 간격 전략을 사용합니다.(일반적으로 지수 백오프); >0 = 대신 고정된 밀리초 간격을 사용하세요.
 //
-// -1 是「显式关掉」而不是「0 次」，因为 0 已经被「未配置」占用了。
+// -1 네「명시적으로 끄기」대신「0 회」，왜냐하면 0 이 되었습니다.「구성되지 않음」점유。
 type RetryRule struct {
 	Attempts   int `json:"attempts"`
 	IntervalMS int `json:"interval_ms"`
@@ -76,20 +76,20 @@ func (o RetryOverride) Clamped() RetryOverride {
 	return o
 }
 
-// LLMRetryPolicy holds the五层 retry configuration. Connect/Empty/Stream are the
+// LLMRetryPolicy holds the5층 retry configuration. Connect/Empty/Stream are the
 // per-request layers (a profile may override them, see LLMProfile.Retry);
 // Breaker and Intent are process-wide by nature and live only here.
 type LLMRetryPolicy struct {
-	// Connect：SDK 建连重试(连接重置/超时/429/5xx，流开始前)。默认 3 次、指数退避。
+	// Connect：SDK 연결 다시 시도(연결 재설정/시간 초과/429/5xx，흐름이 시작되기 전에)。기본값 3 회、지수 백오프。
 	Connect RetryRule `json:"connect"`
-	// Empty：SDK 空响应重试(完成但无 content block，仅 openai 格式)。默认 2 次、指数退避。
+	// Empty：SDK 빈 응답 재시도(완료되었으나 아무것도 없음 content block，만 openai 형식)。기본값 2 회、지수 백오프。
 	Empty RetryRule `json:"empty"`
-	// Stream：同 provider 安全窗口重试(未交付输出前的断流重放)。默认 2 次、0.5s 起指数(封顶 4s)。
+	// Stream：마찬가지예요 provider 안전창 재시도(출력이 전달되기 전 중단 재생)。기본값 2 회、0.5s 시작 인덱스(캡 4s)。
 	Stream RetryRule `json:"stream"`
-	// Breaker：轮询熔断。Attempts=连续几次瞬时失败触发熔断(默认 3，-1=瞬时失败不熔断，
-	// 硬失败如余额不足/密钥失效仍立即熔断)；IntervalMS=固定冷却时长(0=默认 1/5/30min 梯度)。
+	// Breaker：폴링 회로 차단기。Attempts=여러 번 연속해서 순간적으로 오류가 발생하면 퓨즈가 작동됩니다.(기본값 3，-1=퓨즈가 없으면 순간적으로 고장이 납니다.，
+	// 잔액 부족 등 하드 장애/열쇠가 실패하면 즉시 날아가게 됩니다.)；IntervalMS=고정 냉각 시간(0=기본값 1/5/30min 그라데이션)。
 	Breaker RetryRule `json:"breaker"`
-	// Intent：worker 以 model_error 收场后的整条意图重跑。默认 2 次、固定 3s。
+	// Intent：worker 에게 model_error 엔딩 후 의도 전체를 재실행。기본값 2 회、고정됨 3s。
 	Intent RetryRule `json:"intent"`
 }
 

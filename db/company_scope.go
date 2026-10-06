@@ -101,23 +101,23 @@ func ParseScopeInput(input ScopeInput) (ParsedScope, error) {
 			return rule, err
 		}
 		if rule.Kind != kind {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("%q 不是有效的 %s 范围", raw, kind)
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("%q 이 유효하지 않습니다. %s 범위", raw, kind)
 		}
 		return rule, nil
 	case "icp":
 		value := NormalizeICP(raw)
 		if value == "" {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("ICP 不能为空")
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("ICP 은 비워둘 수 없습니다.")
 		}
 		return ParsedScope{Kind: kind, Value: value, Raw: raw}, nil
 	case "keyword":
 		value := normalizeKeyword(raw)
 		if value == "" {
-			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("企业关键词不能为空")
+			return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("Enterprise 키워드는 비워둘 수 없습니다.")
 		}
 		return ParsedScope{Kind: kind, Value: value, Raw: raw}, nil
 	default:
-		return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("不支持的范围类型: %s", kind)
+		return ParsedScope{Kind: kind, Raw: raw}, fmt.Errorf("지원되지 않는 범위 유형: %s", kind)
 	}
 }
 
@@ -127,7 +127,7 @@ func ParseScopeInput(input ScopeInput) (ParsedScope, error) {
 func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	raw := strings.TrimSpace(line)
 	if raw == "" {
-		return ParsedScope{}, fmt.Errorf("空行")
+		return ParsedScope{}, fmt.Errorf("빈 줄")
 	}
 
 	if _, _, err := net.ParseCIDR(raw); err == nil {
@@ -139,12 +139,12 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	if slash := strings.LastIndexByte(raw, '/'); slash > 0 {
 		address := strings.TrimSpace(raw[:slash])
 		if net.ParseIP(address) != nil || looksLikeIPAddress(address) {
-			return ParsedScope{Raw: raw}, fmt.Errorf("无效 CIDR: %s", raw)
+			return ParsedScope{Raw: raw}, fmt.Errorf("유효하지 않음 CIDR: %s", raw)
 		}
 	}
 
 	if looksLikeIPAddress(raw) {
-		return ParsedScope{Raw: raw}, fmt.Errorf("无效 IP: %s", raw)
+		return ParsedScope{Raw: raw}, fmt.Errorf("유효하지 않음 IP: %s", raw)
 	}
 
 	looksLikeDomain := strings.Contains(raw, "://") ||
@@ -152,12 +152,12 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 	if looksLikeDomain {
 		return ParseScopeLine(raw)
 	}
-	// 备案号本身不含点号（如 京ICP备12345678号-1）。带点的文本多半掺了域名或版本号，
-	// 按 ICP 存下来只会得到一条永远匹配不上任何资产的死规则 —— ICP 归属走的是精确
-	// 相等比较（见 companies.go 的 kind='icp' 归属查询），所以这类文本归为关键词。
+	// 등록번호 자체에 마침표가 포함되어 있지 않습니다.（ 쿄ICP준비완료12345678번호-1）。대부분의 점선 텍스트에는 도메인 이름이나 버전 번호가 혼합되어 있습니다.，
+	// 언론 ICP 저장하면 어떤 자산과도 일치할 수 없는 죽은 규칙만 얻게 됩니다. —— ICP 귀속이 정확합니다
+	// 평등 비교（또 만나요 companies.go 님 kind='icp' 속성 쿼리），그래서 이런 종류의 텍스트는 키워드로 분류됩니다.。
 	lower := strings.ToLower(raw)
 	if !strings.ContainsAny(raw, ".．。") &&
-		(strings.Contains(lower, "icp") || strings.Contains(raw, "备案")) {
+		(strings.Contains(lower, "icp") || strings.Contains(raw, "\u5907\u6848")) {
 		return ParseScopeInput(ScopeInput{Kind: "icp", Value: raw})
 	}
 	return ParseScopeInput(ScopeInput{Kind: "keyword", Value: raw})
@@ -166,7 +166,7 @@ func ParseAutoScopeLine(line string) (ParsedScope, error) {
 func scopeHostname(raw string) (string, error) {
 	candidate := strings.TrimSpace(raw)
 	if candidate == "" {
-		return "", fmt.Errorf("主机名为空")
+		return "", fmt.Errorf("호스트 이름이 비어 있습니다.")
 	}
 	if strings.HasPrefix(candidate, "//") {
 		candidate = "http:" + candidate
@@ -176,13 +176,13 @@ func scopeHostname(raw string) (string, error) {
 	parsed, err := url.Parse(candidate)
 	if err != nil || parsed.Host == "" {
 		if err == nil {
-			err = fmt.Errorf("缺少主机名")
+			err = fmt.Errorf("호스트 이름이 누락되었습니다.")
 		}
 		return "", err
 	}
 	host := strings.TrimSuffix(strings.TrimSpace(parsed.Hostname()), ".")
 	if host == "" {
-		return "", fmt.Errorf("主机名为空")
+		return "", fmt.Errorf("호스트 이름이 비어 있습니다.")
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		return ip.String(), nil
@@ -193,19 +193,19 @@ func scopeHostname(raw string) (string, error) {
 	}
 	host = strings.ToLower(host)
 	if len(host) > 253 {
-		return "", fmt.Errorf("域名超过 253 个字符")
+		return "", fmt.Errorf("도메인 이름이 초과되었습니다. 253 문자")
 	}
 	labels := strings.Split(host, ".")
 	if len(labels) < 2 {
-		return "", fmt.Errorf("域名至少需要两个标签")
+		return "", fmt.Errorf("도메인 이름에는 태그가 두 개 이상 필요합니다.")
 	}
 	for _, label := range labels {
 		if label == "" || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
-			return "", fmt.Errorf("域名标签无效")
+			return "", fmt.Errorf("도메인 이름 태그가 잘못되었습니다.")
 		}
 		for _, r := range label {
 			if !((r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-') {
-				return "", fmt.Errorf("域名包含无效字符")
+				return "", fmt.Errorf("도메인 이름에 잘못된 문자가 포함되어 있습니다.")
 			}
 		}
 	}
@@ -219,16 +219,16 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 	raw := strings.TrimSpace(line)
 	r := ParsedScope{Raw: raw}
 	if raw == "" {
-		return r, fmt.Errorf("空行")
+		return r, fmt.Errorf("빈 줄")
 	}
 	// CIDR first because URL parsing treats its slash as a path separator.
 	if _, ipnet, err := net.ParseCIDR(raw); err == nil {
 		ones, bits := ipnet.Mask.Size()
 		if bits == 32 && ones < 16 {
-			return r, fmt.Errorf("网段过宽(IPv4 需 >= /16): %s", raw)
+			return r, fmt.Errorf("네트워크 세그먼트가 너무 넓습니다.(IPv4 필수 >= /16): %s", raw)
 		}
 		if bits == 128 && ones < 32 {
-			return r, fmt.Errorf("网段过宽(IPv6 需 >= /32): %s", raw)
+			return r, fmt.Errorf("네트워크 세그먼트가 너무 넓습니다.(IPv6 필수 >= /32): %s", raw)
 		}
 		r.Kind, r.Net = "cidr", ipnet.String()
 		return r, nil
@@ -245,7 +245,7 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 	}
 	host, err := scopeHostname(raw)
 	if err != nil {
-		return r, fmt.Errorf("无法识别为有效域名/IP/CIDR: %s", raw)
+		return r, fmt.Errorf("유효한 도메인 이름으로 인식되지 않습니다./IP/CIDR: %s", raw)
 	}
 	if ip := net.ParseIP(host); ip != nil {
 		r.Kind = "ip"
@@ -257,15 +257,15 @@ func ParseScopeLine(line string) (ParsedScope, error) {
 		return r, nil
 	}
 	if looksLikeIPAddress(host) {
-		return r, fmt.Errorf("无效 IP: %s", raw)
+		return r, fmt.Errorf("유효하지 않음 IP: %s", raw)
 	}
 	if strings.Contains(raw, "-") && strings.Count(raw, ".") >= 6 {
-		return r, fmt.Errorf("IP 段请用 CIDR 表示(如 1.2.3.0/24): %s", raw)
+		return r, fmt.Errorf("IP 문단을 이용해 주세요 CIDR 뜻( 1.2.3.0/24): %s", raw)
 	}
 	// Domain (registrable). Reject bare TLDs / public suffixes.
 	d := DomainKey(host)
 	if suf, icann := publicsuffix.PublicSuffix(d); icann && suf == d {
-		return r, fmt.Errorf("不能用裸 TLD 作为范围: %s", raw)
+		return r, fmt.Errorf("과도한 노출을 할 수 없습니다. TLD 범위로: %s", raw)
 	}
 	r.Kind, r.Domain = "domain", d
 	return r, nil

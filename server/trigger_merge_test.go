@@ -9,14 +9,14 @@ import (
 // fix: the task-context header (description + goal) is rendered ONCE per task, no
 // matter how many same-task fires are merged.
 
-const longGoal = "拿到题目 f2-05 的受保护 flag 并通过 submit_flag 提交；本题密文已高度收敛，flag 只能由二进制内嵌数据派生……" // 代表那段几千字的继承事实
+const longGoal = "질문이 있어요 f2-05 이 보호됩니다. flag 하고 합격했습니다 submit_flag 제출；이 질문의 암호문은 고도로 수렴되었습니다.，flag 바이너리 내장 데이터에서만 파생될 수 있습니다.……" // 은 수천 단어의 상속 사실을 나타냅니다.
 
 func sameTaskFires(n int) []triggeredRun {
 	items := make([]triggeredRun, n)
 	for i := range items {
 		items[i] = triggeredRun{
-			agentKey: "tec_benchmark", taskID: 72, taskDesc: "f2-05 逆向", taskGoal: longGoal,
-			message: "【本次由工具调用触发】\n工具: submit_flag\n入参: {...}\n返回: {correct:false}", mergeable: true,
+			agentKey: "tec_benchmark", taskID: 72, taskDesc: "f2-05 역방향", taskGoal: longGoal,
+			message: "【이번에는 도구 호출에 의해 트리거됩니다.】\n도구: submit_flag\n매개변수를 입력하세요.: {...}\n복귀: {correct:false}", mergeable: true,
 		}
 	}
 	return items
@@ -27,7 +27,7 @@ func TestMergeAllRunsWritesTaskGoalOnce(t *testing.T) {
 	if got := strings.Count(out.message, longGoal); got != 1 {
 		t.Fatalf("same-task goal should appear exactly once in a merged-all run, got %d", got)
 	}
-	if strings.Count(out.message, "── 触发 ") < 1 || !strings.Contains(out.message, "触发 39") {
+	if strings.Count(out.message, "── 트리거 ") < 1 || !strings.Contains(out.message, "트리거 39") {
 		t.Fatalf("all 39 event bodies should be present: %q", out.message)
 	}
 	// A merged run embeds its header inline, so finalTriggerMessage must not re-add it.
@@ -52,10 +52,10 @@ func TestMergeAllRunsGroupsInterleavedTasks(t *testing.T) {
 	if got := strings.Count(out.message, "GOAL_B"); got != 1 {
 		t.Fatalf("task #2 goal should appear once despite interleaving, got %d", got)
 	}
-	if !strings.Contains(out.message, "共 2 个任务") {
+	if !strings.Contains(out.message, "합계 2 작업") {
 		t.Fatalf("header should report 2 tasks: %q", out.message)
 	}
-	if got := strings.Count(out.message, "── 触发 "); got != 4 {
+	if got := strings.Count(out.message, "── 트리거 "); got != 4 {
 		t.Fatalf("all 4 event bodies should be present, got %d", got)
 	}
 }
@@ -73,7 +73,7 @@ func TestFinalTriggerMessageSingleFirePrependsHeaderOnce(t *testing.T) {
 	if got := strings.Count(msg, longGoal); got != 1 {
 		t.Fatalf("single fire should carry the task goal exactly once, got %d", got)
 	}
-	if !strings.HasPrefix(msg, "【任务 #72") {
+	if !strings.HasPrefix(msg, "【임무 #72") {
 		t.Fatalf("single fire should be prefixed with the task-context header: %q", msg)
 	}
 }
@@ -83,16 +83,16 @@ func TestTaskContextHeaderEmptyForIntervalFire(t *testing.T) {
 		t.Fatalf("interval/none trigger (no task) must produce no header, got %q", h)
 	}
 	// An interval fire's message must pass through untouched.
-	item := triggeredRun{message: "定时触发正文"}
-	if finalTriggerMessage(item) != "定时触发正文" {
+	item := triggeredRun{message: "타이밍 트리거 텍스트"}
+	if finalTriggerMessage(item) != "타이밍 트리거 텍스트" {
 		t.Fatalf("interval fire message must pass through unchanged")
 	}
 }
 
 func TestTaskContextHeaderTruncatesLongGoal(t *testing.T) {
-	huge := strings.Repeat("很", 5000)
+	huge := strings.Repeat("매우", 5000)
 	h := taskContextHeader(72, "d", huge)
-	if len([]rune(h)) > 800 { // 200 desc + 500 goal + 截断标记/装饰，远小于 5000
+	if len([]rune(h)) > 800 { // 200 desc + 500 goal + 잘림 표시/장식，생각보다 훨씬 작음 5000
 		t.Fatalf("header should be bounded even for a huge goal, got %d runes", len([]rune(h)))
 	}
 }

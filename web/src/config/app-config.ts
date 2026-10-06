@@ -7,7 +7,7 @@ export const APP_CONFIG = {
   version: packageJson.version,
   copyright: `© ${currentYear}, ARTEX.`,
   meta: {
-    title: "ARTEX — 自主渗透测试控制台",
-    description: "LLM 驱动的自主渗透测试系统控制台",
+    title: "ARTEX — 독립적인 침투 테스트 콘솔",
+    description: "LLM 구동 독립 침투 테스트 시스템 콘솔",
   },
 };
